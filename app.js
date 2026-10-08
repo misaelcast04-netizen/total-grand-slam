@@ -10,6 +10,13 @@
   const EMOJI = {activation:"📶",edge:"💳",autopay:"💰",upgrade:"⬆️",internet:"🏠",tablet:"📲",tradein:"🔄"};
   const SUBLABEL = {activation:"Línea nueva",autopay:"Con activación en Total Access"};
   const COMBO = {doble:"Doble",homerun:"Home Run",grandslam:"Grand Slam"};
+  const STORES_DEFAULT = ["3996 WP","40 West","4369 WP","487 E Tremont","713 E Tremont","Bergenline","Broadway","Burnside","Dyckman","E 149th St","Hartford","Morris","Passaic","Paterson","St Nicholas","Yonkers"];
+  let STORES = STORES_DEFAULT.slice();
+  function fillStores(){
+    const sel=$("fStore"), cur=sel.value || (JSON.parse(store.get("tgs-last")||"{}").store||"");
+    sel.innerHTML = `<option value="">Escoge la tienda</option>` + STORES.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    if(STORES.includes(cur)) sel.value=cur;
+  }
   const PLACE = ["1er","2do","3er","4to","5to"], MEDAL = ["🥇","🥈","🥉","🏅","🏅"];
   const DEFAULT = {prizes:[50,35,25], endDate:"2026-10-15",
     points:{activation:3,edge:4,autopay:2,upgrade:3,internet:4,tablet:3,tradein:3},
@@ -134,7 +141,6 @@
   function renderDatalists(){
     const uniq=a=>[...new Map(a.filter(Boolean).map(v=>[v.trim().toLowerCase(),v.trim()])).values()].sort();
     $("sellers").innerHTML=uniq(rows.map(r=>r.seller)).map(v=>`<option value="${esc(v)}">`).join("");
-    $("stores").innerHTML=uniq(rows.map(r=>r.store)).map(v=>`<option value="${esc(v)}">`).join("");
   }
 
   // ---------- sound (synthesized; needs a tap first) ----------
@@ -205,20 +211,22 @@
   document.querySelectorAll(".tg[data-k]").forEach(b=>b.addEventListener("click",()=>{ const k=b.dataset.k; form[k]=!form[k]; b.setAttribute("aria-pressed",form[k]?"true":"false"); updateForm(); }));
   const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
   $("fDate").value=todayStr();
-  try{ const l=JSON.parse(store.get("tgs-last")||"{}"); if(l.seller) $("fSeller").value=l.seller; if(l.store) $("fStore").value=l.store; }catch(e){}
+  try{ const l=JSON.parse(store.get("tgs-last")||"{}"); if(l.seller) $("fSeller").value=l.seller; }catch(e){}
+  fillStores();
 
   $("form").addEventListener("submit", async e=>{
     e.preventDefault();
     const msg=$("formMsg"); msg.className="msg err";
     const seller=$("fSeller").value.trim(), order=$("fOrder").value.trim();
     if(!seller){ msg.textContent="Escribe el nombre del vendedor."; $("fSeller").focus(); return; }
+    if(!$("fStore").value){ msg.textContent="Escoge la tienda."; $("fStore").focus(); return; }
     if(!order){ msg.textContent="Escribe el número de orden. Es obligatorio para la auditoría."; $("fOrder").focus(); return; }
     if(!KEYS.some(k=>form[k])){ msg.textContent="Marca al menos una prioridad."; return; }
     const dupe=rows.find(r=>normOrder(r.order)===normOrder(order));
     if(dupe){ msg.textContent=`La orden #${order} ya está registrada (${dupe.seller}, ${fmtDate(dupe.date)}). Si es un error, avisa al administrador.`; $("fOrder").focus(); return; }
     if(!sb){ msg.textContent="Sin conexión. Revisa el internet e intenta otra vez."; return; }
     const existing=rows.find(r=>r.seller.trim().toLowerCase()===seller.toLowerCase());
-    const rec={date:$("fDate").value||todayStr(), order, seller:existing?existing.seller.trim():seller, store:$("fStore").value.trim(), notes:$("fNotes").value.trim()};
+    const rec={date:$("fDate").value||todayStr(), order, seller:existing?existing.seller.trim():seller, store:$("fStore").value, notes:$("fNotes").value.trim()};
     KEYS.forEach(k=>rec[k]=!!form[k]);
     const sc=txScore(rec);
     $("saveBtn").disabled=true;
@@ -226,6 +234,7 @@
       const {data,error}=await sb.rpc("gs_add_tx",{p:rec,p_device:device});
       if(error) throw error;
       if(data?.error==="duplicate"){ msg.textContent=`La orden #${order} ya está registrada${data.seller?` (${data.seller})`:""}. Si es un error, avisa al administrador.`; return; }
+      if(data?.error==="bad_store"){ msg.textContent="Escoge una tienda de la lista."; return; }
       if(data?.error){ msg.textContent="No se pudo guardar. Revisa los datos e intenta otra vez."; return; }
       rememberMine(data.id);
       store.set("tgs-last",JSON.stringify({seller:rec.seller,store:rec.store}));
@@ -423,6 +432,8 @@
   async function refetch(){
     if(!sb) return; if(fetching){ again=true; return; } fetching=true;
     try{
+      const st=await sb.from("gs_stores").select("name,sort").order("sort");
+      if(!st.error && st.data?.length){ const names=st.data.map(x=>x.name); if(names.join("|")!==STORES.join("|")){ STORES=names; fillStores(); } }
       const [tx,cf]=await Promise.all([ sb.from("gs_tx").select(COLS).order("created_at",{ascending:false}).limit(5000), sb.from("gs_config").select("prizes,end_date,points,bonus").eq("id",1).maybeSingle() ]);
       if(tx.error||cf.error) throw tx.error||cf.error;
       rows=tx.data.map(mapRow); cfg=mergeCfg(cf.data); dbState="live"; updateForm(); render();

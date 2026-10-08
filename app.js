@@ -17,6 +17,14 @@
     sel.innerHTML = `<option value="">Escoge la tienda</option>` + STORES.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
     if(STORES.includes(cur)) sel.value=cur;
   }
+  const SELLERS_DEFAULT = ["Alessandro Mendoza","Alexander Tejada","Dany Brito","Elian Crusel","Eslier Quezada","Felix Martinez","Gabriel Perdomo","Gerarl Uribe","Henry Diaz","Jean Alain","Jheremi Marte","Johansel Clase","Jose Rodriguez (Doctor)","Juan Miguel Perez","Juan Reynoso (Bori)","Keiry de la Cruz","Keirys Suriel","Lisandra Perez","Michael Monegro","Michael Ramos","Osvarlyn Gonzalez","Winston Tapia","Yokaira del Rosario"];
+  let SELLERS = SELLERS_DEFAULT.slice();
+  function fillSellers(){
+    const sel=$("fSeller"); let last=""; try{ last=JSON.parse(store.get("tgs-last")||"{}").seller||""; }catch(e){}
+    const cur=sel.value || last;
+    sel.innerHTML = `<option value="">Escoge tu nombre</option>` + SELLERS.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    if(SELLERS.includes(cur)) sel.value=cur;
+  }
   const PLACE = ["1er","2do","3er","4to","5to"], MEDAL = ["🥇","🥈","🥉","🏅","🏅"];
   const DEFAULT = {prizes:[50,35,25], endDate:"2026-10-15",
     points:{activation:3,edge:4,autopay:2,upgrade:3,internet:4,tablet:3,tradein:3},
@@ -138,10 +146,7 @@
       ${own?`<div class="acts"><button class="btn sm danger" type="button" data-undo="${esc(r.id)}">Deshacer</button></div>`:""}</div>`;
     }).join("") : `<div class="hint">Todavía no hay ventas registradas.</div>`;
   }
-  function renderDatalists(){
-    const uniq=a=>[...new Map(a.filter(Boolean).map(v=>[v.trim().toLowerCase(),v.trim()])).values()].sort();
-    $("sellers").innerHTML=uniq(rows.map(r=>r.seller)).map(v=>`<option value="${esc(v)}">`).join("");
-  }
+  function renderDatalists(){}
 
   // ---------- sound (synthesized; needs a tap first) ----------
   let actx=null, noiseBuf=null, soundOn = store.get("tgs-sound")!=="off";
@@ -211,22 +216,21 @@
   document.querySelectorAll(".tg[data-k]").forEach(b=>b.addEventListener("click",()=>{ const k=b.dataset.k; form[k]=!form[k]; b.setAttribute("aria-pressed",form[k]?"true":"false"); updateForm(); }));
   const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;};
   $("fDate").value=todayStr();
-  try{ const l=JSON.parse(store.get("tgs-last")||"{}"); if(l.seller) $("fSeller").value=l.seller; }catch(e){}
+  fillSellers();
   fillStores();
 
   $("form").addEventListener("submit", async e=>{
     e.preventDefault();
     const msg=$("formMsg"); msg.className="msg err";
-    const seller=$("fSeller").value.trim(), order=$("fOrder").value.trim();
-    if(!seller){ msg.textContent="Escribe el nombre del vendedor."; $("fSeller").focus(); return; }
+    const seller=$("fSeller").value, order=$("fOrder").value.trim();
+    if(!seller){ msg.textContent="Escoge tu nombre."; $("fSeller").focus(); return; }
     if(!$("fStore").value){ msg.textContent="Escoge la tienda."; $("fStore").focus(); return; }
     if(!order){ msg.textContent="Escribe el número de orden. Es obligatorio para la auditoría."; $("fOrder").focus(); return; }
     if(!KEYS.some(k=>form[k])){ msg.textContent="Marca al menos una prioridad."; return; }
     const dupe=rows.find(r=>normOrder(r.order)===normOrder(order));
     if(dupe){ msg.textContent=`La orden #${order} ya está registrada (${dupe.seller}, ${fmtDate(dupe.date)}). Si es un error, avisa al administrador.`; $("fOrder").focus(); return; }
     if(!sb){ msg.textContent="Sin conexión. Revisa el internet e intenta otra vez."; return; }
-    const existing=rows.find(r=>r.seller.trim().toLowerCase()===seller.toLowerCase());
-    const rec={date:$("fDate").value||todayStr(), order, seller:existing?existing.seller.trim():seller, store:$("fStore").value, notes:$("fNotes").value.trim()};
+    const rec={date:$("fDate").value||todayStr(), order, seller, store:$("fStore").value, notes:$("fNotes").value.trim()};
     KEYS.forEach(k=>rec[k]=!!form[k]);
     const sc=txScore(rec);
     $("saveBtn").disabled=true;
@@ -235,13 +239,15 @@
       if(error) throw error;
       if(data?.error==="duplicate"){ msg.textContent=`La orden #${order} ya está registrada${data.seller?` (${data.seller})`:""}. Si es un error, avisa al administrador.`; return; }
       if(data?.error==="bad_store"){ msg.textContent="Escoge una tienda de la lista."; return; }
+      if(data?.error==="bad_seller"){ msg.textContent="Escoge tu nombre de la lista. Si no apareces, avisa al administrador."; return; }
+      if(data?.error==="device_locked"){ msg.textContent=`🔒 ${seller} ya está vinculado a otro celular. Si cambiaste de celular, pídele al administrador que lo autorice. Código de este celular: ${data.tag}.`; return; }
       if(data?.error){ msg.textContent="No se pudo guardar. Revisa los datos e intenta otra vez."; return; }
       rememberMine(data.id);
       store.set("tgs-last",JSON.stringify({seller:rec.seller,store:rec.store}));
       KEYS.forEach(k=>form[k]=false); document.querySelectorAll(".tg[data-k]").forEach(b=>b.setAttribute("aria-pressed","false"));
       $("fOrder").value=""; $("fNotes").value=""; updateForm();
       playSale(sc.combo);
-      msg.className="msg"; msg.textContent=`✓ Guardado: ${rec.seller} · orden #${order} · +${sc.total} pts`;
+      msg.className="msg"; msg.textContent=`✓ Guardado: ${rec.seller} · orden #${order} · +${sc.total} pts${data.bound_now?" · 🔒 Tu nombre quedó vinculado a este celular.":""}`;
       refetch();
     }catch(err){ msg.textContent="No se pudo guardar. Revisa el internet e intenta otra vez."; }
     finally{ $("saveBtn").disabled=false; }
@@ -366,11 +372,51 @@
   $("lockBtn").addEventListener("click",()=>{ setAdmin(null); show("board"); });
   document.querySelectorAll(".subnav button").forEach(b=>b.addEventListener("click",()=>{
     document.querySelectorAll(".subnav button").forEach(x=>x.setAttribute("aria-selected",x===b?"true":"false"));
-    ["audit","wa","cfg"].forEach(s=>$("sub-"+s).hidden = s!==b.dataset.sub);
+    ["audit","team","wa","cfg"].forEach(s=>$("sub-"+s).hidden = s!==b.dataset.sub);
     if(b.dataset.sub==="cfg") fillCfgForm();
+    if(b.dataset.sub==="team") loadTeam();
   }));
   $("aSeller").addEventListener("change",()=>{ auditSel=$("aSeller").value; renderAudit(standings(rows)); });
   $("aFilter").addEventListener("input",()=>renderAudit(standings(rows)));
+
+  // ---------- admin: sellers & phones ----------
+  let team=[], pendingUnlink=null;
+  async function loadTeam(){
+    if(!adminPin||!sb) return;
+    const {data,error}=await sb.rpc("gs_admin_sellers",{p_pin:adminPin});
+    if(error||data?.status!=="ok"){ adminFail(error?"error":data?.status,$("teamMsg")); return; }
+    team=data.sellers||[]; renderTeam();
+  }
+  function renderTeam(){
+    const counts=new Map(); rows.forEach(r=>counts.set(r.seller,(counts.get(r.seller)||0)+1));
+    const sorted=[...team].sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name,"es"));
+    $("teamList").innerHTML = sorted.length ? sorted.map(t=>{
+      const n=counts.get(t.name)||0, dev=t.devices||[];
+      const allow = t.allow_until ? `<span class="it nv">⏳ Puede vincular otro celular hasta ${new Date(t.allow_until).toLocaleTimeString("es-US",{hour:"numeric",minute:"2-digit"})}</span>` : "";
+      const devTxt = dev.length ? dev.map(d=>`<span class="it v">📱 ${esc(d.tag)}</span>`).join("") : `<span class="it">Sin celular aún</span>`;
+      const nm=esc(t.name);
+      return `<div class="ent"${t.active?"":' style="opacity:.55"'}><div class="top">${nm}${t.active?"":' <span class="it">Inactivo</span>'}</div><div class="p num" style="font-size:18px">${n} <small style="font-size:11px;color:var(--muted)">ventas</small></div>
+        <div class="its">${devTxt}${allow}</div>
+        ${dev.length?`<div class="sub">Vinculado desde ${esc(fmtTime(Date.parse(dev[0].since)))} · último uso ${esc(fmtTime(Date.parse(dev[dev.length-1].last)))}</div>`:""}
+        <div class="acts">${t.active?`${dev.length?`<button class="btn sm" type="button" data-team="allow" data-name="${nm}">Autorizar otro celular</button><button class="btn sm danger" type="button" data-team="unlink" data-name="${nm}">${pendingUnlink===t.name?"¿Desvincular? Toca otra vez":"Desvincular"}</button>`:""}<button class="btn sm" type="button" data-team="deactivate" data-name="${nm}">Desactivar</button>`:`<button class="btn sm" type="button" data-team="activate" data-name="${nm}">Activar</button>`}</div></div>`;
+    }).join("") : `<div class="hint">No hay vendedores.</div>`;
+  }
+  $("teamReload").addEventListener("click",loadTeam);
+  $("addSellerForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const m=$("addSellerMsg"), name=$("newSeller").value.replace(/\s+/g," ").trim();
+    if(name.length<3){ m.className="msg err"; m.textContent="Escribe el nombre completo."; return; }
+    const s=await adminCall("gs_admin_seller_action",{p_name:name,p_action:"add"});
+    if(s==="ok"){ $("newSeller").value=""; m.className="msg"; m.textContent=`${name} agregado.`; loadTeam(); refetch(); } else adminFail(s,m);
+  });
+  document.addEventListener("click",async e=>{
+    const b=e.target.closest("[data-team]"); if(!b||!adminPin) return;
+    const act=b.dataset.team, name=b.dataset.name, m=$("teamMsg");
+    if(act==="unlink" && pendingUnlink!==name){ pendingUnlink=name; renderTeam(); setTimeout(()=>{ if(pendingUnlink===name){ pendingUnlink=null; renderTeam(); } },4000); return; }
+    pendingUnlink=null; b.disabled=true;
+    const s=await adminCall("gs_admin_seller_action",{p_name:name,p_action:act});
+    if(s==="ok"){ m.className="msg"; m.textContent = act==="allow"?`${name} puede guardar desde un celular nuevo durante 30 minutos.`:act==="unlink"?`${name} quedó sin celular. El próximo celular con el que guarde quedará vinculado.`:act==="deactivate"?`${name} ya no aparece en la lista de vendedores.`:`${name} vuelve a aparecer en la lista.`; await loadTeam(); refetch(); }
+    else adminFail(s,m);
+  });
 
   // ---------- row actions ----------
   document.addEventListener("click",async e=>{
@@ -432,6 +478,8 @@
   async function refetch(){
     if(!sb) return; if(fetching){ again=true; return; } fetching=true;
     try{
+      const sl=await sb.from("gs_sellers").select("name").eq("active",true);
+      if(!sl.error && sl.data){ const names=sl.data.map(x=>x.name).sort((a,b)=>a.localeCompare(b,"es")); if(names.join("|")!==SELLERS.join("|")){ SELLERS=names; fillSellers(); } }
       const st=await sb.from("gs_stores").select("name,sort").order("sort");
       if(!st.error && st.data?.length){ const names=st.data.map(x=>x.name); if(names.join("|")!==STORES.join("|")){ STORES=names; fillStores(); } }
       const [tx,cf]=await Promise.all([ sb.from("gs_tx").select(COLS).order("created_at",{ascending:false}).limit(5000), sb.from("gs_config").select("prizes,end_date,points,bonus").eq("id",1).maybeSingle() ]);

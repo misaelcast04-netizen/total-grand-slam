@@ -258,12 +258,12 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--
   <form class="card" id="form" autocomplete="off" novalidate>
     <div class="formhead"><h2>Nueva venta</h2><button type="button" class="btn sm sound" id="soundBtn" aria-pressed="true">🔊 Sonido</button></div>
     <div class="g2">
-      <label class="f">Vendedor <span class="req" aria-hidden="true">*</span><input id="fSeller" list="sellers" placeholder="Nombre" autocapitalize="words"></label>
+      <label class="f">Vendedor <span class="req" aria-hidden="true">*</span><select id="fSeller"><option value="">Escoge tu nombre</option></select></label>
       <label class="f">Tienda <span class="req" aria-hidden="true">*</span><select id="fStore"><option value="">Escoge la tienda</option></select></label>
       <label class="f"># de orden <span class="req" aria-hidden="true">*</span><input id="fOrder" class="order" placeholder="Ej. 104882" autocapitalize="characters" spellcheck="false"></label>
       <label class="f">Fecha<input type="date" id="fDate"></label>
     </div>
-    <datalist id="sellers"></datalist>
+    <p class="hint" style="margin:8px 0 0">🔒 Tu nombre queda vinculado a este celular la primera vez que guardas una venta.</p>
     <div class="toggles" id="toggles"></div>
     <div class="combo" id="combo"><span class="badge" id="comboBadge">—</span><span id="comboTxt">2 en la misma orden = Doble · 3 = Home Run · Home Run + Trade-In = Grand Slam.</span></div>
     <label class="f" style="margin-top:12px">Notas (opcional)<input id="fNotes" placeholder="Ej. cliente referido"></label>
@@ -294,6 +294,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--
     <div class="sec" style="margin-bottom:0">
       <div class="subnav" role="tablist" aria-label="Administración">
         <button role="tab" data-sub="audit" aria-selected="true">Auditoría</button>
+        <button role="tab" data-sub="team" aria-selected="false">Vendedores</button>
         <button role="tab" data-sub="wa" aria-selected="false">WhatsApp</button>
         <button role="tab" data-sub="cfg" aria-selected="false">Ajustes</button>
       </div>
@@ -311,6 +312,21 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--
         <input class="filter" id="aFilter" placeholder="Buscar # de orden, tienda o nota" style="margin-bottom:10px">
         <div class="list" id="aList"></div>
       </div>
+    </div>
+
+    <div id="sub-team" class="wrap" style="margin-top:14px" hidden>
+      <div class="card">
+        <div class="sec"><h2>Vendedores</h2><button class="btn sm" type="button" id="teamReload">Actualizar</button></div>
+        <p class="hint">Cada vendedor queda vinculado al primer celular con el que guarda una venta. Si cambia de celular, toca <b>Autorizar otro celular</b>: tendrá 30 minutos para guardar una venta desde el celular nuevo, y ese también quedará vinculado.</p>
+        <div class="msg" id="teamMsg" role="status"></div>
+        <div class="list" id="teamList"><div class="hint">Cargando…</div></div>
+      </div>
+      <form class="card" id="addSellerForm" novalidate>
+        <h2>Agregar vendedor</h2>
+        <label class="f">Nombre completo<input id="newSeller" maxlength="60" autocapitalize="words" autocomplete="off"></label>
+        <div class="rowbtns" style="margin-top:10px"><button class="btn primary" type="submit">Agregar</button></div>
+        <div class="msg" id="addSellerMsg" role="status" style="margin-top:8px"></div>
+      </form>
     </div>
 
     <div id="sub-wa" class="wrap" style="margin-top:14px" hidden>

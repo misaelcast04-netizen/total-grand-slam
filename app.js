@@ -240,6 +240,7 @@
       if(data?.error==="duplicate"){ msg.textContent=`La orden #${order} ya está registrada${data.seller?` (${data.seller})`:""}. Si es un error, avisa al administrador.`; return; }
       if(data?.error==="bad_store"){ msg.textContent="Escoge una tienda de la lista."; return; }
       if(data?.error==="bad_seller"){ msg.textContent="Escoge tu nombre de la lista. Si no apareces, avisa al administrador."; return; }
+      if(data?.error==="phone_taken"){ msg.textContent=`🔒 Este celular está vinculado a ${data.seller}. Solo puede registrar ventas de ${data.seller}. Si es un error, pídele al administrador que lo desvincule. Código: ${data.tag}.`; if(SELLERS.includes(data.seller)) $("fSeller").value=data.seller; return; }
       if(data?.error==="device_locked"){ msg.textContent=`🔒 ${seller} ya está vinculado a otro celular. Si cambiaste de celular, pídele al administrador que lo autorice. Código de este celular: ${data.tag}.`; return; }
       if(data?.error){ msg.textContent="No se pudo guardar. Revisa los datos e intenta otra vez."; return; }
       rememberMine(data.id);

@@ -1,5 +1,6 @@
 (function(){
   "use strict";
+  const REG_OPEN = false; // registro cerrado hasta nuevo aviso
   const SB_URL = "https://dcarjzkvzqildscomjfu.supabase.co";
   const SB_KEY = "sb_publishable_Zf1-IcES-Q7rxRuWF6bYeA_aVlMI0pX";
   const COLS = "id,date,order_no,seller,store,activation,edge,autopay,upgrade,internet,tablet,tradein,notes,verified,device_tag,created_at";
@@ -221,6 +222,7 @@
 
   $("form").addEventListener("submit", async e=>{
     e.preventDefault();
+    if(!REG_OPEN){ const m=$("formMsg"); m.className="msg err"; m.textContent="El registro está cerrado."; return; }
     const msg=$("formMsg"); msg.className="msg err";
     const seller=$("fSeller").value, order=$("fOrder").value.trim();
     if(!seller){ msg.textContent="Escoge tu nombre."; $("fSeller").focus(); return; }
@@ -248,7 +250,7 @@
       KEYS.forEach(k=>form[k]=false); document.querySelectorAll(".tg[data-k]").forEach(b=>b.setAttribute("aria-pressed","false"));
       $("fOrder").value=""; $("fNotes").value=""; updateForm();
       playSale(sc.combo);
-      msg.className="msg"; msg.textContent=`✓ Guardado: ${rec.seller} · orden #${order} · +${sc.total} pts${data.bound_now?" · 🔒 Tu nombre quedó vinculado a este celular.":""}`;
+      msg.className="msg"; msg.textContent=`✓ Guardado: ${rec.seller} · orden #${order} · +${sc.total} pts`;
       refetch();
     }catch(err){ msg.textContent="No se pudo guardar. Revisa el internet e intenta otra vez."; }
     finally{ $("saveBtn").disabled=false; }
@@ -393,13 +395,9 @@
     const sorted=[...team].sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name,"es"));
     $("teamList").innerHTML = sorted.length ? sorted.map(t=>{
       const n=counts.get(t.name)||0, dev=t.devices||[];
-      const allow = t.allow_until ? `<span class="it nv">⏳ Puede vincular otro celular hasta ${new Date(t.allow_until).toLocaleTimeString("es-US",{hour:"numeric",minute:"2-digit"})}</span>` : "";
-      const devTxt = dev.length ? dev.map(d=>`<span class="it v">📱 ${esc(d.tag)}</span>`).join("") : `<span class="it">Sin celular aún</span>`;
       const nm=esc(t.name);
       return `<div class="ent"${t.active?"":' style="opacity:.55"'}><div class="top">${nm}${t.active?"":' <span class="it">Inactivo</span>'}</div><div class="p num" style="font-size:18px">${n} <small style="font-size:11px;color:var(--muted)">ventas</small></div>
-        <div class="its">${devTxt}${allow}</div>
-        ${dev.length?`<div class="sub">Vinculado desde ${esc(fmtTime(Date.parse(dev[0].since)))} · último uso ${esc(fmtTime(Date.parse(dev[dev.length-1].last)))}</div>`:""}
-        <div class="acts">${t.active?`${dev.length?`<button class="btn sm" type="button" data-team="allow" data-name="${nm}">Autorizar otro celular</button><button class="btn sm danger" type="button" data-team="unlink" data-name="${nm}">${pendingUnlink===t.name?"¿Desvincular? Toca otra vez":"Desvincular"}</button>`:""}<button class="btn sm" type="button" data-team="deactivate" data-name="${nm}">Desactivar</button>`:`<button class="btn sm" type="button" data-team="activate" data-name="${nm}">Activar</button>`}</div></div>`;
+        <div class="acts">${t.active?`<button class="btn sm" type="button" data-team="deactivate" data-name="${nm}">Desactivar</button>`:`<button class="btn sm" type="button" data-team="activate" data-name="${nm}">Activar</button>`}</div></div>`;
     }).join("") : `<div class="hint">No hay vendedores.</div>`;
   }
   $("teamReload").addEventListener("click",loadTeam);
@@ -473,6 +471,12 @@
   $("copyWin").addEventListener("click",()=>copyText($("waWin").value,"copyWinMsg","Copiado. Pégalo en WhatsApp."));
 
   updateForm(); render();
+  if(!REG_OPEN){
+    $("form").hidden=true; $("savebar").hidden=true;
+    const c=document.createElement("div"); c.className="card"; c.style.textAlign="center";
+    c.innerHTML='<h2>🔒 Registro cerrado</h2><p class="hint" style="margin:0">El registro de ventas está cerrado hasta nuevo aviso. El marcador sigue disponible.</p>';
+    $("form").parentNode.insertBefore(c,$("form"));
+  }
 
   // ---------- data ----------
   let fetching=false, again=false;

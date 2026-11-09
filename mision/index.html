@@ -4,14 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070B1E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Misión Total">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Misión Total</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 :root{--sky:#070B1E;--sky2:#0F1533;--card:#141B3D;--line:#25305E;--txt:#EEF1FF;--mut:#9BA5CF;--orb:#4FC3F7;--moon:#FFD166;--lift:#9C8CFF;--ok:#3DDC97;--hot:#FF8A5C;--red:#FF6B7A;
 --d:"Space Grotesk","Inter",system-ui,sans-serif;--b:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--sky);color:var(--txt);font-family:var(--b);font-size:15px;line-height:1.45}
-body{padding-inline:16px;padding-block:0 96px;background:radial-gradient(1px 1px at 20% 30%,#fff7 50%,transparent 51%) 0 0/120px 120px,radial-gradient(1.5px 1.5px at 40% 60%,#ffd16666 50%,transparent 51%) 0 0/200px 200px,var(--sky)}
+html,body{margin:0;background:var(--sky);color:var(--txt);font-family:var(--b);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+body{padding-inline:max(16px,env(safe-area-inset-left,0px));padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));background:radial-gradient(1px 1px at 20% 30%,#fff7 50%,transparent 51%) 0 0/120px 120px,radial-gradient(1.5px 1.5px at 40% 60%,#ffd16666 50%,transparent 51%) 0 0/200px 200px,var(--sky)}
 .app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 [hidden]{display:none!important}
 button,input,select{font:inherit;color:inherit}
@@ -109,6 +117,16 @@ nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:re
 nav.tabs button{border:0;background:transparent;border-radius:10px;padding:7px 2px;font-size:11px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav.tabs button .ic{font-size:20px;line-height:1}
 nav.tabs button[aria-selected="true"]{background:var(--card);color:var(--txt)}
+button{touch-action:manipulation}
+.who{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--sky2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13.5px}
+.who b{color:var(--moon)}
+.login{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.login .pin input{max-width:220px;margin:0 auto}
+.install{background:linear-gradient(135deg,#1d2457,#141B3D);border:1px solid var(--orb);border-radius:14px;padding:12px 14px;font-size:13.5px;display:flex;flex-direction:column;gap:8px}
+.install b{color:var(--orb)}
+.install .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.linkbtn{background:none;border:0;color:var(--mut);text-decoration:underline;cursor:pointer;font-size:13px;padding:8px}
+body.locked nav.tabs{display:none}
 .foot{text-align:center;font-size:11px;color:#6b75a3;padding-top:6px}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--card);border:1px solid var(--moon);color:var(--txt);padding:10px 16px;border-radius:12px;font-weight:700;z-index:9;box-shadow:0 8px 30px #000a;max-width:90vw;text-align:center}
 @media (prefers-reduced-motion:no-preference){.rk .tr i,.prog .bar i,.rkt .bar i{transition:width .5s ease}}
@@ -117,6 +135,8 @@ nav.tabs button[aria-selected="true"]{background:var(--card);color:var(--txt)}
 <body>
 <div class="app">
   <header class="h"><div><h1>Misión <span>Total</span> 🚀</h1><div class="sub" id="weekLine">Noviembre 2026</div></div><span class="net" id="net">Conectando…</span></header>
+  <div id="installBox"></div>
+  <section id="v-login" hidden></section>
   <section id="v-control"></section>
   <section id="v-reg" hidden></section>
   <section id="v-me" hidden></section>
@@ -215,7 +235,7 @@ function bindWeeks(root,key,fn){[].forEach.call(root.querySelectorAll('[data-wk=
 
 /* ---------- CONTROL ---------- */
 function renderControl(){
-  var w=W.control, wk=WEEKS[w-1], st=standings(w), meName=LS.get("mt-me")||"";
+  var w=W.control, wk=WEEKS[w-1], st=standings(w), meName=ME?ME.name:"";
   $("weekLine").textContent=WEEKS[curWeek()-1].t;
   var h=weekChips("control")+'<div class="card" style="margin-top:10px"><h2>🏆 Ranking · '+esc(wk.t.split(" · ")[1])+'</h2><div class="sub" style="margin:-6px 0 6px">Por % de tu meta · no por dinero</div>';
   if(!st.length)h+='<div class="empty">Todavía no hay ventas esta semana.<br>¡El primero en registrar se lleva ⚡ Primer lanzamiento!</div>';
@@ -249,15 +269,16 @@ function renderControl(){
 }
 
 /* ---------- REGISTRAR ---------- */
-var F;function resetF(){var last={};try{last=JSON.parse(LS.get("mt-last")||"{}");}catch(e){}F={seller:last.seller||LS.get("mt-me")||"",store:last.store||"",order:"",plan:null,lines:1,tabs:[],hi:null,ap:0,edge:0,acc:""};}
+var F;function resetF(){var last={};try{last=JSON.parse(LS.get("mt-last")||"{}");}catch(e){}F={seller:ME?ME.name:"",store:last.store||"",order:"",plan:null,lines:1,tabs:[],hi:null,ap:0,edge:0,acc:""};}
 resetF();
 function stepper(key,icon,title,sub,val){return '<div class="step"><div><b>'+icon+' '+title+'</b><div class="sub">'+sub+'</div></div><div class="ctl"><button type="button" data-dec="'+key+'" aria-label="Menos '+title+'">−</button><b class="num">'+val+'</b><button type="button" data-inc="'+key+'" aria-label="Más '+title+'">+</button></div></div>';}
 function renderReg(){
   if(curWeek()&&nyToday()>WEEKS[2].b){$("v-reg").innerHTML='<div class="card empty">🏁 Misión Total terminó el 30 de noviembre.<br>Gracias por participar.</div>';return;}
-  var act=sellers.filter(function(s){return s.active;}).map(function(s){return s.name;});
+  if(!ME){$("v-reg").innerHTML='<div class="card empty">Solo los vendedores registran ventas.<br>Cierra el modo admin y entra con tu nombre y PIN.</div>';return;}
+  F.seller=ME.name;
   var h='<div class="card"><h2>📝 Nueva venta</h2>'+
-   '<div class="g2"><label class="fld">Vendedor<select id="fS"><option value="">Escoge tu nombre</option>'+act.map(function(n){return '<option'+(n===F.seller?' selected':'')+'>'+esc(n)+'</option>';}).join("")+'</select></label>'+
-   '<label class="fld">Tienda<select id="fT"><option value="">Escoge la tienda</option>'+stores.map(function(s){return '<option'+(s.name===F.store?' selected':'')+'>'+esc(s.name)+'</option>';}).join("")+'</select></label></div>'+
+   '<div class="who"><span>Registrando como <b>'+esc(ME.name)+'</b></span></div>'+
+   '<label class="fld" style="margin-top:8px">Tienda<select id="fT"><option value="">Escoge la tienda</option>'+stores.map(function(s){return '<option'+(s.name===F.store?' selected':'')+'>'+esc(s.name)+'</option>';}).join("")+'</select></label>'+
    '<label class="fld" style="margin-top:8px"># de orden<input id="fO" autocomplete="off" inputmode="numeric" placeholder="Ej. 358201447" value="'+esc(F.order)+'"></label>'+
    '<div class="lbl">Plan de la línea nueva</div><div class="grid4">'+
    PLANS.map(function(p){return '<button type="button" class="opt" data-plan="'+p.p+'" aria-pressed="'+(F.plan===p.p)+'">$'+p.p+(p.t?'<small>'+p.t+'</small>':'')+'</button>';}).join("")+'</div>'+
@@ -274,7 +295,6 @@ function renderReg(){
    '<div id="tip" style="margin-top:10px"></div><div class="msg" id="rmsg" role="status" style="margin-top:8px"></div><div id="undoBox"></div></div>'+
    '<button class="launch" type="button" id="launch"><span>🚀 Lanzar venta</span><span id="gain">+$0.00</span></button>';
   $("v-reg").innerHTML=h;
-  $("fS").onchange=function(){F.seller=this.value;preview();};
   $("fT").onchange=function(){F.store=this.value;};
   $("fO").oninput=function(){F.order=this.value;};
   $("fA").oninput=function(){F.acc=this.value;preview();};
@@ -304,19 +324,20 @@ var saving=false;
 async function save(){
   if(saving)return;
   var m=$("rmsg"), d=draft();m.className="msg err";
-  if(!F.seller){m.textContent="Escoge tu nombre.";$("fS").focus();return;}
+  if(!ME){logout();return;}
   if(!F.store){m.textContent="Escoge la tienda.";$("fT").focus();return;}
   if(F.order.replace(/\s/g,"").length<4){m.textContent="Escribe el número de orden.";$("fO").focus();return;}
   if(!d.plan&&!d.tabs.length&&!d.hi&&!d.autopay&&!d.edge&&!d.acc){m.textContent="Marca al menos un producto.";return;}
   if(!online){m.textContent="Sin conexión. Revisa el internet e intenta de nuevo.";return;}
   saving=true;$("launch").disabled=true;m.className="msg";m.textContent="Lanzando…";
   var before=calc(mySales(F.seller,d.week));
-  var res=await sb.rpc("mt_add_sale",{p:{seller:F.seller,store:F.store,order:F.order,plan:d.plan,lines:d.lines,tabs:d.tabs,hi:d.hi,autopay:d.autopay,edge:d.edge,acc:d.acc},p_device:device});
+  var res=await sb.rpc("mt_add_sale",{p:{seller:F.seller,store:F.store,order:F.order,plan:d.plan,lines:d.lines,tabs:d.tabs,hi:d.hi,autopay:d.autopay,edge:d.edge,acc:d.acc},p_device:device,p_pin:ME.pin});
   saving=false;
   var st=res.error?"error":(res.data&&res.data.status);
-  var ERR={dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",bad_seller:"Ese vendedor no está activo. Habla con tu supervisor.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
+  if(st==="bad_pin"||st==="no_pin"||st==="bad_seller"){logout("Tu PIN cambió o tu usuario no está activo. Entra de nuevo.");return;}
+  var ERR={dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",locked:"Demasiados intentos con PIN incorrecto. Espera 15 minutos.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
   if(st!=="ok"){$("launch").disabled=false;m.className="msg err";m.textContent=ERR[st]||ERR.error;return;}
-  LS.set("mt-last",JSON.stringify({seller:F.seller,store:F.store}));LS.set("mt-me",F.seller);
+  LS.set("mt-last",JSON.stringify({store:F.store}));
   d.id=res.data.id;d.date=res.data.date;d.week=res.data.week;d.verified=false;sales.unshift(d);
   mine.push({id:d.id,t:Date.now(),o:F.order});mine=mine.slice(-20);LS.set("mt-mine",JSON.stringify(mine));
   var after=calc(mySales(F.seller,d.week)), up=after.acLvl>before.acLvl||after.apLvl>before.apLvl;
@@ -344,9 +365,9 @@ function progRow(icon,title,n,mO,mL,lvl,payTxt,hint,fmt){
     '<div class="row"><span class="hint">'+hint+'</span><b class="num">'+payTxt+'</b></div></div>';
 }
 function renderMe(){
-  var me=LS.get("mt-me")||"", act=sellers.map(function(s){return s.name;});
-  var h='<label class="fld">¿Quién eres?<select id="meSel"><option value="">Escoge tu nombre</option>'+act.map(function(n){return '<option'+(n===me?' selected':'')+'>'+esc(n)+'</option>';}).join("")+'</select></label>';
-  if(!me){$("v-me").innerHTML=h+'<div class="card empty" style="margin-top:10px">Escoge tu nombre para ver tu misión.</div>';bindMe();return;}
+  if(!ME){$("v-me").innerHTML='<div class="card empty">Entra con tu nombre y PIN para ver tu misión.</div>';return;}
+  var me=ME.name;
+  var h='<div class="who"><span>👨‍🚀 <b>'+esc(me)+'</b></span><button type="button" class="btn sm" id="out">Cerrar sesión</button></div>';
   h+='<div style="margin-top:10px">'+weekChips("me")+'</div>';
   var w=W.me, st=standings(w), c=st.filter(function(x){return x.name===me;})[0], pos=c?st.indexOf(c)+1:0;
   if(!c){$("v-me").innerHTML=h+'<div class="card empty" style="margin-top:10px">Sin ventas en '+esc(WEEKS[w-1].t)+'.<br>Tu primera venta enciende el día y arranca tu meta. 🚀</div>';bindMe();return;}
@@ -362,17 +383,19 @@ function renderMe(){
   h+='<div class="sub" style="text-align:center">La meta crece 1 por cada día que registras una venta. Toda orden se verifica antes de pagar.</div>';
   $("v-me").innerHTML=h;bindMe();
 }
-function bindMe(){$("meSel").onchange=function(){LS.set("mt-me",this.value);renderMe();};bindWeeks($("v-me"),"me",renderMe);}
+function bindMe(){$("out").onclick=function(){if(this.dataset.c!=="1"){this.dataset.c="1";this.textContent="¿Seguro? Toca otra vez";return;}logout();};bindWeeks($("v-me"),"me",renderMe);}
 function items(s){var it=[];if(s.plan)it.push((s.lines>1?s.lines+"× ":"")+"Plan $"+s.plan);(s.tabs||[]).forEach(function(t){it.push("Tablet $"+t);});if(s.hi)it.push("HI $"+s.hi);if(s.autopay)it.push("Autopago"+(s.autopay>1?" ×"+s.autopay:""));if(s.edge)it.push("Edge"+(s.edge>1?" ×"+s.edge:""));if(Number(s.acc))it.push("Acc. $"+Number(s.acc).toFixed(2));return it.join(" · ");}
 var DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 function fmtDate(d){var x=new Date(d+"T12:00:00");return DOW[x.getDay()]+" "+x.getDate()+" nov";}
 
 /* ---------- ADMIN ---------- */
-var adminPin=SS.get("mt-pin"), adminRows=[], sub="tiendas", auditQ="";
+var adminPin=SS.get("mt-pin"), adminRows=[], adminPins={}, sub="tiendas", auditQ="";
 async function adminLoad(){
   var r=await sb.rpc("mt_admin_sales",{p_pin:adminPin});
   if(r.error||!r.data||r.data.status!=="ok"){adminPin=null;SS.set("mt-pin",null);return false;}
-  adminRows=r.data.rows||[];return true;
+  adminRows=r.data.rows||[];
+  var p=await sb.rpc("mt_admin_pins",{p_pin:adminPin});if(!p.error&&p.data&&p.data.status==="ok")adminPins=p.data.pins||{};
+  return true;
 }
 async function adminCall(fn,args){var r=await sb.rpc(fn,Object.assign({p_pin:adminPin},args));return r.error?"error":(r.data&&r.data.status)||"error";}
 function renderAdmin(){
@@ -392,7 +415,7 @@ function renderAdmin(){
   h+='<div style="text-align:center;margin-top:12px"><button class="btn sm" id="logout">Cerrar admin</button></div>';
   $("v-admin").innerHTML=h;
   [].forEach.call(document.querySelectorAll("#v-admin [data-sub]"),function(b){b.onclick=function(){sub=b.dataset.sub;renderAdmin();};});
-  $("logout").onclick=function(){adminPin=null;SS.set("mt-pin",null);renderAdmin();};
+  $("logout").onclick=function(){adminPin=null;SS.set("mt-pin",null);if(!ME){showLogin();return;}renderAdmin();};
   bindAdmin();
 }
 function dayOfMonth(){var t=nyToday();return Math.min(30,Math.max(1,+t.slice(8,10)));}
@@ -432,8 +455,10 @@ function adminAudit(){
 }
 function adminSellers(){
   var cnt={};sales.forEach(function(s){cnt[s.seller]=(cnt[s.seller]||0)+1;});
-  return '<div class="card" style="margin-top:10px"><h2>Vendedores</h2><div style="display:flex;gap:8px"><input class="inp" id="newSeller" placeholder="Nombre y apellido"><button class="btn pri" id="addSeller">Agregar</button></div><div class="msg" id="smsg" style="margin-top:6px"></div>'+
-    sellers.map(function(s){return '<div class="sale"><div>'+esc(s.name)+'<div class="sub">'+(cnt[s.name]||0)+' ventas'+(s.active?'':' · inactivo')+'</div></div><div class="acts">'+(s.active?'<button class="btn sm red" data-s="deactivate" data-n="'+esc(s.name)+'">Desactivar</button>':'<button class="btn sm" data-s="activate" data-n="'+esc(s.name)+'">Activar</button>')+'</div></div>';}).join("")+'</div>';
+  return '<div class="card" style="margin-top:10px"><h2>Vendedores y PINs</h2><div style="display:flex;gap:8px"><input class="inp" id="newSeller" placeholder="Nombre y apellido"><button class="btn pri" id="addSeller">Agregar</button></div><div class="msg" id="smsg" style="margin-top:6px"></div>'+
+    '<div style="display:flex;gap:8px;margin:6px 0 4px;flex-wrap:wrap"><button class="btn sm" id="copyPins">📋 Copiar lista de PINs</button><button class="btn sm" id="csvPins">⬇ PINs (CSV)</button></div>'+
+    sellers.map(function(s){return '<div class="sale"><div>'+esc(s.name)+'<div class="sub">PIN <b class="num" style="color:var(--moon);font-size:15px;letter-spacing:.1em">'+esc(adminPins[s.name]||"—")+'</b> · '+(cnt[s.name]||0)+' ventas'+(s.active?'':' · inactivo')+'</div></div><div class="acts"><button class="btn sm" data-np="'+esc(s.name)+'">Nuevo PIN</button>'+(s.active?'<button class="btn sm red" data-s="deactivate" data-n="'+esc(s.name)+'">Desactivar</button>':'<button class="btn sm" data-s="activate" data-n="'+esc(s.name)+'">Activar</button>')+'</div></div>';}).join("")+
+    '<div class="sub" style="margin-top:8px">Cada vendedor entra con su nombre y su PIN. "Nuevo PIN" cambia el código y cierra la sesión en su celular la próxima vez que registre.</div></div>';
 }
 function csv(name,rows){
   var t=rows.map(function(r){return r.map(function(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(",");}).join("\n");
@@ -464,9 +489,69 @@ function bindAdmin(){
     for(var i=0;i<ids.length;i++)await adminCall("mt_admin_sale",{p_id:ids[i],p_action:"verify"});
     await Promise.all([adminLoad(),loadAll()]);toast("✓ "+ids.length+" verificadas");renderAdmin();};
   if($("addSeller"))$("addSeller").onclick=async function(){var n=$("newSeller").value.trim();if(n.length<2){$("smsg").className="msg err";$("smsg").textContent="Escribe el nombre.";return;}
-    var s=await adminCall("mt_admin_seller",{p_name:n,p_action:"add"});if(s==="ok"){await loadAll();toast("Agregado: "+n);renderAdmin();}else{$("smsg").className="msg err";$("smsg").textContent="No se pudo agregar.";}};
+    var s=await adminCall("mt_admin_seller",{p_name:n,p_action:"add"});if(s==="ok"){await Promise.all([loadAll(),adminLoad()]);toast("Agregado: "+n+" · PIN "+(adminPins[n]||""));renderAdmin();}else{$("smsg").className="msg err";$("smsg").textContent="No se pudo agregar.";}};
+  [].forEach.call(v.querySelectorAll("[data-np]"),function(b){b.onclick=async function(){
+    if(b.dataset.c!=="1"){b.dataset.c="1";b.textContent="¿Cambiar?";return;}
+    var r=await sb.rpc("mt_admin_set_seller_pin",{p_pin:adminPin,p_name:b.dataset.np,p_new:null});
+    if(!r.error&&r.data&&r.data.status==="ok"){adminPins[b.dataset.np]=r.data.pin;toast(b.dataset.np+": nuevo PIN "+r.data.pin);renderAdmin();}else toast("No se pudo");};});
+  var pinList=function(){return sellers.filter(function(s){return s.active;}).map(function(s){return [s.name,adminPins[s.name]||""];});};
+  if($("copyPins"))$("copyPins").onclick=async function(){var t="🚀 Misión Total · PINs\n"+pinList().map(function(r){return r[0]+": "+r[1];}).join("\n");
+    try{await navigator.clipboard.writeText(t);toast("Lista copiada");}catch(e){toast("No se pudo copiar; usa el CSV");}};
+  if($("csvPins"))$("csvPins").onclick=function(){csv("mision-total-pins.csv",[["Vendedor","PIN"]].concat(pinList()));};
   [].forEach.call(v.querySelectorAll("[data-s]"),function(b){b.onclick=async function(){var s=await adminCall("mt_admin_seller",{p_name:b.dataset.n,p_action:b.dataset.s});if(s==="ok"){await loadAll();renderAdmin();}else toast("No se pudo");};});
 }
+
+/* ---------- sesión del vendedor ---------- */
+var ME=null;try{ME=JSON.parse(LS.get("mt-session")||"null");}catch(e){}
+if(ME&&(!ME.name||!/^\d{4}$/.test(ME.pin||"")))ME=null;
+resetF();
+var loginName="";
+function showLogin(msg){
+  document.body.classList.add("locked");
+  ["control","reg","me","admin"].forEach(function(v){$("v-"+v).hidden=true;});
+  var L=$("v-login");L.hidden=false;
+  var act=sellers.filter(function(s){return s.active;}).map(function(s){return s.name;});
+  L.innerHTML='<div class="card login"><h2 style="margin:0">👨‍🚀 Entra a tu misión</h2>'+
+    '<label class="fld">Tu nombre<select id="lgName"><option value="">Escoge tu nombre</option>'+act.map(function(n){return '<option'+(n===loginName?' selected':'')+'>'+esc(n)+'</option>';}).join("")+'</select></label>'+
+    '<div class="pin" style="margin:4px auto 0"><div class="sub">Tu PIN de 4 dígitos</div><input id="lgPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" aria-label="PIN"></div>'+
+    '<div class="msg err" id="lgMsg" role="status" style="text-align:center">'+esc(msg||"")+'</div>'+
+    '<div class="sub" style="text-align:center">¿No tienes PIN? Pídeselo a tu supervisor.</div></div>'+
+    '<div style="text-align:center"><button type="button" class="linkbtn" id="lgAdmin">Entrar como administrador</button></div>';
+  $("lgName").onchange=function(){loginName=this.value;$("lgMsg").textContent="";if(loginName)$("lgPin").focus();};
+  $("lgPin").oninput=async function(){
+    var v=this.value.replace(/\D/g,"");this.value=v;if(v.length!==4)return;
+    var m=$("lgMsg");if(!loginName){m.textContent="Primero escoge tu nombre.";this.value="";return;}
+    m.className="msg";m.textContent="Verificando…";
+    var r=await sb.rpc("mt_seller_login",{p_name:loginName,p_pin:v});var s=r.error?"error":r.data.status;
+    if(s==="ok"){ME={name:loginName,pin:v};LS.set("mt-session",JSON.stringify(ME));snd("level");enterApp("reg");return;}
+    m.className="msg err";m.textContent={bad_pin:"PIN incorrecto.",locked:"Demasiados intentos. Espera 15 minutos.",no_pin:"No tienes PIN asignado. Pídeselo a tu supervisor.",bad_seller:"Ese nombre no está activo.",error:"Sin conexión. Intenta de nuevo."}[s]||"No se pudo entrar.";
+    this.value="";
+  };
+  $("lgAdmin").onclick=function(){enterApp("admin");};
+}
+function logout(msg){ME=null;try{localStorage.removeItem("mt-session");}catch(e){}resetF();showLogin(msg);}
+function enterApp(v){
+  document.body.classList.remove("locked");$("v-login").hidden=true;resetF();
+  var b=document.querySelector('nav.tabs [data-v="'+v+'"]');b.click();
+}
+
+/* ---------- instalar en el celular ---------- */
+var deferredPrompt=null;
+var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferredPrompt=e;renderInstall();});
+window.addEventListener("appinstalled",function(){LS.set("mt-installed","1");renderInstall();});
+function renderInstall(){
+  var box=$("installBox");
+  if(standalone||LS.get("mt-install-hide")==="1"||LS.get("mt-installed")==="1"){box.innerHTML="";return;}
+  var how=deferredPrompt?'<button type="button" class="btn pri" id="instBtn">📲 Instalar app</button>':
+    isIOS?'En Safari toca <b>Compartir ⬆️</b> y luego <b>“Agregar a pantalla de inicio”</b>.':
+    'En Chrome toca el menú <b>⋮</b> y luego <b>“Agregar a la pantalla principal”</b> o <b>“Instalar app”</b>.';
+  box.innerHTML='<div class="install"><div class="row"><span>🚀 <b>Pon Misión Total en tu pantalla</b></span><button type="button" class="linkbtn" id="instHide" aria-label="Ocultar">✕</button></div><div>'+how+'</div></div>';
+  $("instHide").onclick=function(){LS.set("mt-install-hide","1");renderInstall();};
+  if($("instBtn"))$("instBtn").onclick=async function(){deferredPrompt.prompt();var c=await deferredPrompt.userChoice;deferredPrompt=null;if(c.outcome==="accepted")LS.set("mt-installed","1");renderInstall();};
+}
+if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});
 
 /* ---------- navegación y carga ---------- */
 var view="control";
@@ -487,12 +572,17 @@ async function loadAll(){
   }catch(e){setNet(false);return false;}
 }
 function busy(){var a=document.activeElement;return a&&(a.tagName==="INPUT"||a.tagName==="SELECT");}
-async function refresh(){await loadAll();if(view==="reg"){if(!busy())renderUndo();return;}if(view==="admin"){if(busy())return;if(adminPin)await adminLoad();}R[view]();}
+async function refresh(){await loadAll();if(document.body.classList.contains("locked"))return;if(view==="reg"){if(!busy())renderUndo();return;}if(view==="admin"){if(busy())return;if(adminPin)await adminLoad();}R[view]();}
 (async function init(){
   if(!window.supabase){setNet(false);$("v-control").innerHTML='<div class="card empty">No se pudo cargar la app. Revisa tu internet y recarga.</div>';return;}
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});
   $("v-control").innerHTML='<div class="card empty">Cargando misión…</div>';
-  await loadAll();if(adminPin)await adminLoad();renderControl();
+  renderInstall();
+  await loadAll();
+  if(ME){var r=await sb.rpc("mt_seller_login",{p_name:ME.name,p_pin:ME.pin});var s=r.error?"error":r.data.status;
+    if(s==="bad_pin"||s==="no_pin"||s==="bad_seller"){logout("Tu PIN cambió. Entra de nuevo.");return;}}
+  if(!ME&&!adminPin){showLogin();}
+  else{if(adminPin)await adminLoad();renderControl();}
   setInterval(refresh,45000);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)refresh();});
 })();

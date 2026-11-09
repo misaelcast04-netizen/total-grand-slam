@@ -153,6 +153,7 @@ body.locked nav.tabs{display:none}
 </div></nav>
 
 <script src="../supabase.js"></script>
+<script src="celebra.js?v=1"></script>
 <script>
 (function(){
 "use strict";
@@ -242,11 +243,11 @@ function renderControl(){
   var jumps=st.filter(function(c){return c.jump!=null&&c.jump>0;}).sort(function(a,b){return b.jump-a.jump;}), jump=jumps[0];
   st.forEach(function(c,i){
     var L=LV[lvlOf(c)], wd=Math.min(100,c.perf/2);
-    h+='<div class="rk r'+(i+1)+(c.name===meName?' me':'')+'"><div class="p">'+(i+1)+'</div><div><div class="nm">'+esc(c.name)+
+    h+='<div class="rk r'+(i+1)+(c.name===meName?' me':'')+(lvlOf(c)===2?' luna':'')+'"><div class="p">'+(i+1)+'</div><div><div class="nm">'+esc(c.name)+(lvlOf(c)===2?'<span class="moonglow" aria-label="En la Luna"></span>':'')+
       (lvlOf(c)?'<span class="bd" style="background:'+L[2]+';color:#05081A">'+L[0]+' '+L[1]+'</span>':'')+
       (jump&&c===jump?'<span class="bd" style="background:var(--hot);color:#05081A">🔥 +'+c.jump+'%</span>':'')+
       '</div><div class="st">'+esc(c.store)+' · '+c.d+(c.d===1?' día':' días')+'</div></div><div class="pc num" style="color:'+color(c.perf)+'">'+c.perf+'%</div>'+
-      '<div class="tr"><i style="width:'+wd+'%;background:'+color(c.perf)+'"></i></div></div>';
+      '<div class="tr"><i style="width:'+wd+'%'+(lvlOf(c)===2?'':';background:'+color(c.perf))+'"></i></div></div>';
   });
   h+='</div>';
   if(st.length){
@@ -330,7 +331,7 @@ async function save(){
   if(!d.plan&&!d.tabs.length&&!d.hi&&!d.autopay&&!d.edge&&!d.acc){m.textContent="Marca al menos un producto.";return;}
   if(!online){m.textContent="Sin conexión. Revisa el internet e intenta de nuevo.";return;}
   saving=true;$("launch").disabled=true;m.className="msg";m.textContent="Lanzando…";
-  var before=calc(mySales(F.seller,d.week));
+  var before=calc(mySales(F.seller,d.week)), posBefore=rankPos(F.seller,d.week);
   var res=await sb.rpc("mt_add_sale",{p:{seller:F.seller,store:F.store,order:F.order,plan:d.plan,lines:d.lines,tabs:d.tabs,hi:d.hi,autopay:d.autopay,edge:d.edge,acc:d.acc},p_device:device,p_pin:ME.pin});
   saving=false;
   var st=res.error?"error":(res.data&&res.data.status);
@@ -341,10 +342,24 @@ async function save(){
   d.id=res.data.id;d.date=res.data.date;d.week=res.data.week;d.verified=false;sales.unshift(d);
   mine.push({id:d.id,t:Date.now(),o:F.order});mine=mine.slice(-20);LS.set("mt-mine",JSON.stringify(mine));
   var after=calc(mySales(F.seller,d.week)), up=after.acLvl>before.acLvl||after.apLvl>before.apLvl;
-  snd(up?"level":"launch");
+  var cele=celebrate(before,after,posBefore,rankPos(F.seller,d.week),d.week);
+  if(!cele)snd(up?"level":"launch");
   var keep="✓ Venta lanzada: +"+money(after.pay.total-before.pay.total)+(up?" · ¡Subiste de nivel!":"");
   var keepS=F.seller,keepT=F.store;resetF();F.seller=keepS;F.store=keepT;
-  renderReg();var mm=$("rmsg");mm.className="msg ok";mm.textContent=keep;toast(up?"🎉 ¡Subiste de nivel!":"🚀 ¡Venta lanzada!");
+  renderReg();var mm=$("rmsg");mm.className="msg ok";mm.textContent=keep;if(!cele)toast("🚀 ¡Venta lanzada!");
+}
+function rankPos(name,w){var st=standings(w);for(var i=0;i<st.length;i++)if(st[i].name===name)return i+1;return 0;}
+function celebrate(b,a,pb,pa,w){
+  var C=window.MTCelebrate;if(!C)return false;
+  var first=(ME&&ME.name||"").split(" ")[0];
+  if(a.acLvl===2&&b.acLvl<2){C.luna(first,"Activaciones a 12%");return true;}
+  if(a.apLvl===2&&b.apLvl<2){C.luna(first,"Autopagos a $3.00 c/u");return true;}
+  if(a.acLvl===1&&b.acLvl<1){C.orbit("Activaciones a 10%");return true;}
+  if(a.apLvl===1&&b.apLvl<1){C.orbit("Autopagos a $2.50 c/u");return true;}
+  if(a.accOk&&!b.accOk){C.fireworks("🎧 ¡Mínimo de accesorios!","Cobras 5% de todo");return true;}
+  if(pb&&pa&&pa<pb){var st=standings(w),passed=st[pa]&&st[pa].name;
+    C.fireworks(pa===1?"🏆 ¡Eres el #1!":"⬆️ ¡Subiste al #"+pa+"!",passed?"Pasaste a "+passed.split(" ")[0]:"Sigue así");return true;}
+  return false;
 }
 function renderUndo(){
   var box=$("undoBox");if(!box)return;

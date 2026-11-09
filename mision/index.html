@@ -74,6 +74,11 @@ header.h h1 span{color:var(--moon)}
 .step .ctl b{min-width:22px;text-align:center;font:700 20px var(--d)}
 .warn{margin-top:8px;background:#ff8a5c1a;border:1px solid var(--hot);color:#FFC7B0;border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.4}
 .warn b{color:#fff}
+.l1{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--sky2);border-radius:10px;padding:9px 12px;font-size:14px}
+.l1 .ck{color:var(--ok);font-weight:800;white-space:nowrap}
+.sum{margin-top:8px;background:#4fc3f714;border:1px solid #4fc3f755;border-radius:10px;padding:9px 12px;font-size:13.5px}
+.sum b{color:var(--orb)}
+.phones{font-size:18px;letter-spacing:2px;overflow-wrap:anywhere}
 .tip{background:#ffd16614;border:1px dashed var(--moon);color:var(--moon);border-radius:10px;padding:9px 12px;font-weight:600;font-size:13.5px}
 .launch{position:sticky;bottom:78px;display:flex;justify-content:space-between;align-items:center;background:var(--moon);color:#05081A;border:0;border-radius:14px;padding:14px 16px;font:700 18px var(--d);width:100%;cursor:pointer;box-shadow:0 6px 24px #0008}
 .launch:disabled{opacity:.6;cursor:wait}
@@ -171,11 +176,14 @@ var LS={get:function(k){try{return localStorage.getItem(k);}catch(e){return null
 var SS={get:function(k){try{return sessionStorage.getItem(k);}catch(e){return null;}},set:function(k,v){try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v);}catch(e){}}};
 
 /* ---------- reglas ---------- */
-var PLANS=[{p:30,b:15},{p:40,b:20},{p:55,b:27.5},{p:65,b:32.5},{p:110,b:68.75,t:"2 meses"},{p:130,b:81.25,t:"2 meses"},{p:165,b:110,t:"3 meses"},{p:195,b:130,t:"3 meses"}];
+var PLANS=[{p:30,b:15,t:"BYO",n:"Total MAX 5G BYO",one:1},{p:40,b:20,n:"Total STARTER",fam:"starter"},{p:55,b:27.5,n:"Total MAX 5G",fam:"max"},{p:65,b:32.5,n:"Total ALL ACCESS",fam:"aa"},{p:110,b:68.75,t:"2 meses",n:"Total MAX 5G · 2 meses",one:1},{p:130,b:81.25,t:"2 meses",n:"Total ALL ACCESS · 2 meses",one:1},{p:165,b:110,t:"3 meses",n:"Total MAX 5G · 3 meses",one:1},{p:195,b:130,t:"3 meses",n:"Total ALL ACCESS · 3 meses",one:1}];
+var PI={};PLANS.forEach(function(x){PI[x.p]=x;});
 var PB={};PLANS.forEach(function(x){PB[x.p]=x.b;});
-// Base de comisión por cada línea adicional (plan familiar). Pendiente: se llena cuando lleguen los precios familiares.
-var FAM={};
-var BYO=30; // $30 es BYO (trae tu equipo): solo 1 línea
+// Precios familiares 2026 (total del paquete con autopago). La comisión usa el precio SIN autopago = total + $5.
+var FAM={starter:{2:75,3:85,4:95},max:{2:80,3:95,4:105},aa:{2:90,3:105,4:115}};
+var NOAUTO=5, MAXLINES=10;
+function famTotal(plan,n){var t=FAM[PI[plan].fam];return n<=4?t[n]:t[4]+30*(n-4);}
+function planBase(plan,n){var x=PI[plan];if(!x)return 0;if(x.one||n<=1||!x.fam)return x.b;return (famTotal(plan,n)+NOAUTO)*.5;}
 var TAB={10:5,20:10}, HI={35:17.5,60:30};
 var WEEKS=[{n:1,a:"2026-11-09",b:"2026-11-15",t:"Semana 1 · 9–15 nov"},{n:2,a:"2026-11-16",b:"2026-11-22",t:"Semana 2 · 16–22 nov"},{n:3,a:"2026-11-23",b:"2026-11-30",t:"Semana 3 · 23–30 nov"}];
 var LV=[["🛰️","Despegue","var(--lift)"],["🌍","Órbita","var(--orb)"],["🌕","Luna","var(--moon)"]];
@@ -192,7 +200,7 @@ if(!device||device.length<16){var a=new Uint8Array(16);crypto.getRandomValues(a)
 var mine=[];try{mine=JSON.parse(LS.get("mt-mine")||"[]");}catch(e){}
 
 function acts(s){return (s.plan?s.lines:0)+(s.tabs||[]).length+(s.hi?1:0);}
-function base(s){var b=0;if(s.plan)b+=(PB[s.plan]||0)+Math.max(0,s.lines-1)*(FAM[s.plan]||0);(s.tabs||[]).forEach(function(t){b+=TAB[t]||0;});if(s.hi)b+=HI[s.hi]||0;return b;}
+function base(s){var b=0;if(s.plan)b+=planBase(s.plan,s.lines);(s.tabs||[]).forEach(function(t){b+=TAB[t]||0;});if(s.hi)b+=HI[s.hi]||0;return b;}
 function calc(list){
   var days={},n={ap:0,act:0,base:0,edge:0,acc:0};
   list.forEach(function(s){days[s.date]=1;n.ap+=s.autopay;n.act+=acts(s);n.base+=base(s);n.edge+=s.edge;n.acc+=Number(s.acc)||0;});
@@ -291,8 +299,10 @@ function renderReg(){
    '<label class="fld" style="margin-top:8px"># de orden<input id="fO" autocomplete="off" inputmode="numeric" placeholder="Ej. 358201447" value="'+esc(F.order)+'"></label>'+
    '<div class="lbl">Plan de la línea nueva</div><div class="grid4">'+
    PLANS.map(function(p){return '<button type="button" class="opt" data-plan="'+p.p+'" aria-pressed="'+(F.plan===p.p)+'">$'+p.p+(p.t?'<small>'+p.t+'</small>':'')+'</button>';}).join("")+'</div>'+
-   (F.plan===BYO?'<div class="warn">⚠️ <b>$30 es BYO (trae tu equipo)</b> y es de <b>1 sola línea</b>. Si activó 2 o más líneas, escoge el plan familiar correcto.</div>':
-    F.plan?stepper("lines","📶","Líneas en esta orden","1ra línea a precio del plan · las demás a precio familiar",F.lines):'')+
+   (F.plan?'<div class="l1"><span>📱 <b>1ra línea</b> · '+esc(PI[F.plan].n)+'</span><span class="ck">✓ $'+F.plan+'</span></div>'+
+     (PI[F.plan].one?'<div class="warn">🔒 <b>Plan de 1 sola línea.</b> Si el cliente activó 2 o más líneas, escoge $40, $55 o $65 y usa Add a Line.</div>':
+      stepper("lines","➕","Add a Line","Líneas extra en la misma orden (2da en adelante)",F.lines-1)+
+      (F.lines>1?'<div class="sum"><span class="phones">'+new Array(F.lines+1).join("📱")+'</span><br>Paquete familiar '+esc(PI[F.plan].n.replace("Total ",""))+' <b>'+F.lines+' líneas = $'+famTotal(F.plan,F.lines)+'/mes</b><br><span class="sub">Cuentan como '+F.lines+' activaciones</span></div>':'')):'')+
    '<div class="lbl">Tablet y Home Internet</div><div class="chips">'+
    '<button type="button" class="opt" data-tab="10" aria-pressed="'+(F.tabs.indexOf(10)>=0)+'">📲 Tablet $10</button>'+
    '<button type="button" class="opt" data-tab="20" aria-pressed="'+(F.tabs.indexOf(20)>=0)+'">📲 Tablet $20</button>'+
@@ -312,7 +322,7 @@ function renderReg(){
   q("[data-plan]",function(b){var p=+b.dataset.plan;F.plan=F.plan===p?null:p;F.lines=1;});
   q("[data-tab]",function(b){var t=+b.dataset.tab,i=F.tabs.indexOf(t);if(i>=0)F.tabs.splice(i,1);else F.tabs.push(t);});
   q("[data-hi]",function(b){var t=+b.dataset.hi;F.hi=F.hi===t?null:t;});
-  var MAX={lines:5,ap:10,edge:10},MIN={lines:1,ap:0,edge:0};
+  var MAX={lines:MAXLINES,ap:10,edge:10},MIN={lines:1,ap:0,edge:0};
   q("[data-inc]",function(b){var k=b.dataset.inc;F[k]=Math.min(MAX[k],F[k]+1);});
   q("[data-dec]",function(b){var k=b.dataset.dec;F[k]=Math.max(MIN[k],F[k]-1);});
   $("launch").onclick=save;
@@ -345,7 +355,7 @@ async function save(){
   saving=false;
   var st=res.error?"error":(res.data&&res.data.status);
   if(st==="bad_pin"||st==="no_pin"||st==="bad_seller"){logout("Tu PIN cambió o tu usuario no está activo. Entra de nuevo.");return;}
-  var ERR={dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",locked:"Demasiados intentos con PIN incorrecto. Espera 15 minutos.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
+  var ERR={single_line:"Ese plan es de 1 sola línea. Para varias líneas usa $40, $55 o $65 con Add a Line.",dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",locked:"Demasiados intentos con PIN incorrecto. Espera 15 minutos.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
   if(st!=="ok"){$("launch").disabled=false;m.className="msg err";m.textContent=ERR[st]||ERR.error;return;}
   LS.set("mt-last",JSON.stringify({store:F.store}));
   d.id=res.data.id;d.date=res.data.date;d.week=res.data.week;d.verified=false;sales.unshift(d);

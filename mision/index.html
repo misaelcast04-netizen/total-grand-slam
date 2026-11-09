@@ -118,6 +118,9 @@ nav.tabs button{border:0;background:transparent;border-radius:10px;padding:7px 2
 nav.tabs button .ic{font-size:20px;line-height:1}
 nav.tabs button[aria-selected="true"]{background:var(--card);color:var(--txt)}
 button{touch-action:manipulation}
+.hr{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.exit{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.exit.sure{background:var(--red);border-color:var(--red);color:#05081A}
 .who{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--sky2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13.5px}
 .who b{color:var(--moon)}
 .login{display:flex;flex-direction:column;gap:12px;margin-top:8px}
@@ -134,7 +137,7 @@ body.locked nav.tabs{display:none}
 </head>
 <body>
 <div class="app">
-  <header class="h"><div><h1>Misión <span>Total</span> 🚀</h1><div class="sub" id="weekLine">Noviembre 2026</div></div><span class="net" id="net">Conectando…</span></header>
+  <header class="h"><div><h1>Misión <span>Total</span> 🚀</h1><div class="sub" id="weekLine">Noviembre 2026</div></div><div class="hr"><span class="net" id="net">Conectando…</span><button type="button" class="exit" id="exitBtn" hidden>⏏ Cerrar sesión</button></div></header>
   <div id="installBox"></div>
   <section id="v-login" hidden></section>
   <section id="v-control"></section>
@@ -414,6 +417,7 @@ async function adminLoad(){
 }
 async function adminCall(fn,args){var r=await sb.rpc(fn,Object.assign({p_pin:adminPin},args));return r.error?"error":(r.data&&r.data.status)||"error";}
 function renderAdmin(){
+  syncExit();
   if(!adminPin){
     $("v-admin").innerHTML='<div class="card pin"><h2 style="margin:0">🔒 Admin</h2><div class="sub">Código de 4 dígitos</div><input id="pin" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Código"><div class="msg err" id="pmsg"></div></div>';
     $("pin").oninput=async function(){var v=this.value.replace(/\D/g,"");if(v.length!==4)return;
@@ -543,11 +547,15 @@ function showLogin(msg){
     this.value="";
   };
   $("lgAdmin").onclick=function(){enterApp("admin");};
+  syncExit();
 }
+function syncExit(){var b=$("exitBtn");var on=!document.body.classList.contains("locked")&&(ME||adminPin);b.hidden=!on;b.classList.remove("sure");b.textContent="⏏ Cerrar sesión";}
+$("exitBtn").onclick=function(){var b=this;if(!b.classList.contains("sure")){b.classList.add("sure");b.textContent="¿Salir? Toca otra vez";clearTimeout(b._t);b._t=setTimeout(syncExit,3000);return;}
+  adminPin=null;SS.set("mt-pin",null);adminRows=[];logout();};
 function logout(msg){ME=null;try{localStorage.removeItem("mt-session");}catch(e){}resetF();showLogin(msg);}
 function enterApp(v){
   document.body.classList.remove("locked");$("v-login").hidden=true;resetF();
-  var b=document.querySelector('nav.tabs [data-v="'+v+'"]');b.click();
+  var b=document.querySelector('nav.tabs [data-v="'+v+'"]');b.click();syncExit();
 }
 
 /* ---------- instalar en el celular ---------- */
@@ -598,6 +606,7 @@ async function refresh(){await loadAll();if(document.body.classList.contains("lo
     if(s==="bad_pin"||s==="no_pin"||s==="bad_seller"){logout("Tu PIN cambió. Entra de nuevo.");return;}}
   if(!ME&&!adminPin){showLogin();}
   else{if(adminPin)await adminLoad();renderControl();}
+  syncExit();
   setInterval(refresh,45000);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)refresh();});
 })();

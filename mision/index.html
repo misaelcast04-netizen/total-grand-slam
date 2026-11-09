@@ -79,6 +79,8 @@ header.h h1 span{color:var(--moon)}
 .sum{margin-top:8px;background:#4fc3f714;border:1px solid #4fc3f755;border-radius:10px;padding:9px 12px;font-size:13.5px}
 .sum b{color:var(--orb)}
 .phones{font-size:18px;letter-spacing:2px;overflow-wrap:anywhere}
+.opt:disabled,.step.off .ctl button:disabled{opacity:.35;cursor:not-allowed}
+.step.off b{color:var(--mut)}
 .tip{background:#ffd16614;border:1px dashed var(--moon);color:var(--moon);border-radius:10px;padding:9px 12px;font-weight:600;font-size:13.5px}
 .launch{position:sticky;bottom:78px;display:flex;justify-content:space-between;align-items:center;background:var(--moon);color:#05081A;border:0;border-radius:14px;padding:14px 16px;font:700 18px var(--d);width:100%;cursor:pointer;box-shadow:0 6px 24px #0008}
 .launch:disabled{opacity:.6;cursor:wait}
@@ -288,7 +290,8 @@ function renderControl(){
 /* ---------- REGISTRAR ---------- */
 var F;function resetF(){var last={};try{last=JSON.parse(LS.get("mt-last")||"{}");}catch(e){}F={seller:ME?ME.name:"",store:last.store||"",order:"",plan:null,lines:1,tabs:[],hi:null,ap:0,edge:0,acc:""};}
 resetF();
-function stepper(key,icon,title,sub,val){return '<div class="step"><div><b>'+icon+' '+title+'</b><div class="sub">'+sub+'</div></div><div class="ctl"><button type="button" data-dec="'+key+'" aria-label="Menos '+title+'">−</button><b class="num">'+val+'</b><button type="button" data-inc="'+key+'" aria-label="Más '+title+'">+</button></div></div>';}
+function stepper(key,icon,title,sub,val,off){var d=off?' disabled':'';return '<div class="step'+(off?' off':'')+'"><div><b>'+icon+' '+title+'</b><div class="sub">'+sub+'</div></div><div class="ctl"><button type="button" data-dec="'+key+'" aria-label="Menos '+title+'"'+d+'>−</button><b class="num">'+val+'</b><button type="button" data-inc="'+key+'" aria-label="Más '+title+'"'+d+'>+</button></div></div>';}
+function hasAct(){return !!(F.plan||F.tabs.length||F.hi);}
 function renderReg(){
   if(curWeek()&&nyToday()>WEEKS[2].b){$("v-reg").innerHTML='<div class="card empty">🏁 Misión Total terminó el 30 de noviembre.<br>Gracias por participar.</div>';return;}
   if(!ME){$("v-reg").innerHTML='<div class="card empty">Solo los vendedores registran ventas.<br>Cierra el modo admin y entra con tu nombre y PIN.</div>';return;}
@@ -298,19 +301,20 @@ function renderReg(){
    '<label class="fld" style="margin-top:8px">Tienda<select id="fT"><option value="">Escoge la tienda</option>'+stores.map(function(s){return '<option'+(s.name===F.store?' selected':'')+'>'+esc(s.name)+'</option>';}).join("")+'</select></label>'+
    '<label class="fld" style="margin-top:8px"># de orden<input id="fO" autocomplete="off" inputmode="numeric" placeholder="Ej. 358201447" value="'+esc(F.order)+'"></label>'+
    '<div class="lbl">Plan de la línea nueva</div><div class="grid4">'+
-   PLANS.map(function(p){return '<button type="button" class="opt" data-plan="'+p.p+'" aria-pressed="'+(F.plan===p.p)+'">$'+p.p+(p.t?'<small>'+p.t+'</small>':'')+'</button>';}).join("")+'</div>'+
+   PLANS.map(function(p){return '<button type="button" class="opt" data-plan="'+p.p+'" aria-pressed="'+(F.plan===p.p)+'"'+(F.edge?' disabled':'')+'>$'+p.p+(p.t?'<small>'+p.t+'</small>':'')+'</button>';}).join("")+'</div>'+
    (F.plan?'<div class="l1"><span>📱 <b>1ra línea</b> · '+esc(PI[F.plan].n)+'</span><span class="ck">✓ $'+F.plan+'</span></div>'+
      (PI[F.plan].one?'<div class="warn">🔒 <b>Plan de 1 sola línea.</b> Si el cliente activó 2 o más líneas, escoge $40, $55 o $65 y usa Add a Line.</div>':
       stepper("lines","➕","Add a Line","Líneas extra en la misma orden (2da en adelante)",F.lines-1)+
       (F.lines>1?'<div class="sum"><span class="phones">'+new Array(F.lines+1).join("📱")+'</span><br>Paquete familiar '+esc(PI[F.plan].n.replace("Total ",""))+' <b>'+F.lines+' líneas = $'+famTotal(F.plan,F.lines)+'/mes</b><br><span class="sub">Cuentan como '+F.lines+' activaciones</span></div>':'')):'')+
+   (F.edge?'<div class="warn">🔒 <b>Venta con Total Edge.</b> Edge es pago único y ya incluye la línea: no se combina con planes, tablet ni Home Internet. Para activar, pon Edge en 0.</div>':'')+
    '<div class="lbl">Tablet y Home Internet</div><div class="chips">'+
-   '<button type="button" class="opt" data-tab="10" aria-pressed="'+(F.tabs.indexOf(10)>=0)+'">📲 Tablet $10</button>'+
-   '<button type="button" class="opt" data-tab="20" aria-pressed="'+(F.tabs.indexOf(20)>=0)+'">📲 Tablet $20</button>'+
-   '<button type="button" class="opt" data-hi="35" aria-pressed="'+(F.hi===35)+'">🏠 HI $35</button>'+
-   '<button type="button" class="opt" data-hi="60" aria-pressed="'+(F.hi===60)+'">🏠 HI $60</button></div>'+
+   '<button type="button" class="opt" data-tab="10" aria-pressed="'+(F.tabs.indexOf(10)>=0)+'"'+(F.edge?' disabled':'')+'>📲 Tablet $10</button>'+
+   '<button type="button" class="opt" data-tab="20" aria-pressed="'+(F.tabs.indexOf(20)>=0)+'"'+(F.edge?' disabled':'')+'>📲 Tablet $20</button>'+
+   '<button type="button" class="opt" data-hi="35" aria-pressed="'+(F.hi===35)+'"'+(F.edge?' disabled':'')+'>🏠 HI $35</button>'+
+   '<button type="button" class="opt" data-hi="60" aria-pressed="'+(F.hi===60)+'"'+(F.edge?' disabled':'')+'>🏠 HI $60</button></div>'+
    '<div class="lbl">Extras</div>'+
    stepper("ap","💰","Autopago","Clientes que pusieron autopago",F.ap)+
-   stepper("edge","💳","Total Edge","$15 cada uno",F.edge)+
+   stepper("edge","💳","Total Edge",hasAct()?"🔒 No se combina con activaciones: Edge es pago único y ya incluye la línea":"Pago único $15 c/u · ya incluye la línea",F.edge,hasAct())+
    '<label class="fld" style="margin-top:10px">🎧 Accesorios vendidos ($)<input id="fA" inputmode="decimal" placeholder="0.00" value="'+esc(F.acc)+'"></label>'+
    '<div id="tip" style="margin-top:10px"></div><div class="msg" id="rmsg" role="status" style="margin-top:8px"></div><div id="undoBox"></div></div>'+
    '<button class="launch" type="button" id="launch"><span>🚀 Lanzar venta</span><span id="gain">+$0.00</span></button>';
@@ -348,6 +352,7 @@ async function save(){
   if(!F.store){m.textContent="Escoge la tienda.";$("fT").focus();return;}
   if(F.order.replace(/\s/g,"").length<4){m.textContent="Escribe el número de orden.";$("fO").focus();return;}
   if(!d.plan&&!d.tabs.length&&!d.hi&&!d.autopay&&!d.edge&&!d.acc){m.textContent="Marca al menos un producto.";return;}
+  if(d.edge&&(d.plan||d.tabs.length||d.hi)){m.textContent="Edge no se combina con activaciones. Regístralos por separado.";return;}
   if(!online){m.textContent="Sin conexión. Revisa el internet e intenta de nuevo.";return;}
   saving=true;$("launch").disabled=true;m.className="msg";m.textContent="Lanzando…";
   var before=calc(mySales(F.seller,d.week)), posBefore=rankPos(F.seller,d.week);
@@ -355,7 +360,7 @@ async function save(){
   saving=false;
   var st=res.error?"error":(res.data&&res.data.status);
   if(st==="bad_pin"||st==="no_pin"||st==="bad_seller"){logout("Tu PIN cambió o tu usuario no está activo. Entra de nuevo.");return;}
-  var ERR={single_line:"Ese plan es de 1 sola línea. Para varias líneas usa $40, $55 o $65 con Add a Line.",dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",locked:"Demasiados intentos con PIN incorrecto. Espera 15 minutos.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
+  var ERR={edge_mix:"Edge no se combina con activaciones. Regístralos por separado.",single_line:"Ese plan es de 1 sola línea. Para varias líneas usa $40, $55 o $65 con Add a Line.",dup:"Esa orden ya está registrada.",bad_order:"Revisa el número de orden.",empty:"Marca al menos un producto.",closed:"El reto no está activo hoy.",locked:"Demasiados intentos con PIN incorrecto. Espera 15 minutos.",bad_store:"Escoge una tienda válida.",bad_data:"Revisa los datos de la venta.",error:"No se pudo guardar. Intenta de nuevo."};
   if(st!=="ok"){$("launch").disabled=false;m.className="msg err";m.textContent=ERR[st]||ERR.error;return;}
   LS.set("mt-last",JSON.stringify({store:F.store}));
   d.id=res.data.id;d.date=res.data.date;d.week=res.data.week;d.verified=false;sales.unshift(d);

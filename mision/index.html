@@ -72,6 +72,8 @@ header.h h1 span{color:var(--moon)}
 .step .ctl{display:flex;align-items:center;gap:10px}
 .step .ctl button{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--sky);font:700 20px var(--d);cursor:pointer}
 .step .ctl b{min-width:22px;text-align:center;font:700 20px var(--d)}
+.warn{margin-top:8px;background:#ff8a5c1a;border:1px solid var(--hot);color:#FFC7B0;border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.4}
+.warn b{color:#fff}
 .tip{background:#ffd16614;border:1px dashed var(--moon);color:var(--moon);border-radius:10px;padding:9px 12px;font-weight:600;font-size:13.5px}
 .launch{position:sticky;bottom:78px;display:flex;justify-content:space-between;align-items:center;background:var(--moon);color:#05081A;border:0;border-radius:14px;padding:14px 16px;font:700 18px var(--d);width:100%;cursor:pointer;box-shadow:0 6px 24px #0008}
 .launch:disabled{opacity:.6;cursor:wait}
@@ -171,6 +173,9 @@ var SS={get:function(k){try{return sessionStorage.getItem(k);}catch(e){return nu
 /* ---------- reglas ---------- */
 var PLANS=[{p:30,b:15},{p:40,b:20},{p:55,b:27.5},{p:65,b:32.5},{p:110,b:68.75,t:"2 meses"},{p:130,b:81.25,t:"2 meses"},{p:165,b:110,t:"3 meses"},{p:195,b:130,t:"3 meses"}];
 var PB={};PLANS.forEach(function(x){PB[x.p]=x.b;});
+// Base de comisión por cada línea adicional (plan familiar). Pendiente: se llena cuando lleguen los precios familiares.
+var FAM={};
+var BYO=30; // $30 es BYO (trae tu equipo): solo 1 línea
 var TAB={10:5,20:10}, HI={35:17.5,60:30};
 var WEEKS=[{n:1,a:"2026-11-09",b:"2026-11-15",t:"Semana 1 · 9–15 nov"},{n:2,a:"2026-11-16",b:"2026-11-22",t:"Semana 2 · 16–22 nov"},{n:3,a:"2026-11-23",b:"2026-11-30",t:"Semana 3 · 23–30 nov"}];
 var LV=[["🛰️","Despegue","var(--lift)"],["🌍","Órbita","var(--orb)"],["🌕","Luna","var(--moon)"]];
@@ -187,7 +192,7 @@ if(!device||device.length<16){var a=new Uint8Array(16);crypto.getRandomValues(a)
 var mine=[];try{mine=JSON.parse(LS.get("mt-mine")||"[]");}catch(e){}
 
 function acts(s){return (s.plan?s.lines:0)+(s.tabs||[]).length+(s.hi?1:0);}
-function base(s){var b=0;if(s.plan)b+=(PB[s.plan]||0)*s.lines;(s.tabs||[]).forEach(function(t){b+=TAB[t]||0;});if(s.hi)b+=HI[s.hi]||0;return b;}
+function base(s){var b=0;if(s.plan)b+=(PB[s.plan]||0)+Math.max(0,s.lines-1)*(FAM[s.plan]||0);(s.tabs||[]).forEach(function(t){b+=TAB[t]||0;});if(s.hi)b+=HI[s.hi]||0;return b;}
 function calc(list){
   var days={},n={ap:0,act:0,base:0,edge:0,acc:0};
   list.forEach(function(s){days[s.date]=1;n.ap+=s.autopay;n.act+=acts(s);n.base+=base(s);n.edge+=s.edge;n.acc+=Number(s.acc)||0;});
@@ -286,7 +291,8 @@ function renderReg(){
    '<label class="fld" style="margin-top:8px"># de orden<input id="fO" autocomplete="off" inputmode="numeric" placeholder="Ej. 358201447" value="'+esc(F.order)+'"></label>'+
    '<div class="lbl">Plan de la línea nueva</div><div class="grid4">'+
    PLANS.map(function(p){return '<button type="button" class="opt" data-plan="'+p.p+'" aria-pressed="'+(F.plan===p.p)+'">$'+p.p+(p.t?'<small>'+p.t+'</small>':'')+'</button>';}).join("")+'</div>'+
-   (F.plan?stepper("lines","📶","Líneas con este plan","Si activó varias en la misma orden",F.lines):'')+
+   (F.plan===BYO?'<div class="warn">⚠️ <b>$30 es BYO (trae tu equipo)</b> y es de <b>1 sola línea</b>. Si activó 2 o más líneas, escoge el plan familiar correcto.</div>':
+    F.plan?stepper("lines","📶","Líneas en esta orden","1ra línea a precio del plan · las demás a precio familiar",F.lines):'')+
    '<div class="lbl">Tablet y Home Internet</div><div class="chips">'+
    '<button type="button" class="opt" data-tab="10" aria-pressed="'+(F.tabs.indexOf(10)>=0)+'">📲 Tablet $10</button>'+
    '<button type="button" class="opt" data-tab="20" aria-pressed="'+(F.tabs.indexOf(20)>=0)+'">📲 Tablet $20</button>'+
@@ -402,7 +408,7 @@ function renderMe(){
   $("v-me").innerHTML=h;bindMe();
 }
 function bindMe(){$("out").onclick=function(){if(this.dataset.c!=="1"){this.dataset.c="1";this.textContent="¿Seguro? Toca otra vez";return;}logout();};bindWeeks($("v-me"),"me",renderMe);}
-function items(s){var it=[];if(s.plan)it.push((s.lines>1?s.lines+"× ":"")+"Plan $"+s.plan);(s.tabs||[]).forEach(function(t){it.push("Tablet $"+t);});if(s.hi)it.push("HI $"+s.hi);if(s.autopay)it.push("Autopago"+(s.autopay>1?" ×"+s.autopay:""));if(s.edge)it.push("Edge"+(s.edge>1?" ×"+s.edge:""));if(Number(s.acc))it.push("Acc. $"+Number(s.acc).toFixed(2));return it.join(" · ");}
+function items(s){var it=[];if(s.plan)it.push("Plan $"+s.plan+(s.lines>1?" + "+(s.lines-1)+(s.lines>2?" líneas familiares":" línea familiar"):""));(s.tabs||[]).forEach(function(t){it.push("Tablet $"+t);});if(s.hi)it.push("HI $"+s.hi);if(s.autopay)it.push("Autopago"+(s.autopay>1?" ×"+s.autopay:""));if(s.edge)it.push("Edge"+(s.edge>1?" ×"+s.edge:""));if(Number(s.acc))it.push("Acc. $"+Number(s.acc).toFixed(2));return it.join(" · ");}
 var DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 function fmtDate(d){var x=new Date(d+"T12:00:00");return DOW[x.getDay()]+" "+x.getDate()+" nov";}
 

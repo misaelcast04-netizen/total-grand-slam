@@ -81,6 +81,12 @@ header.h h1 span{color:var(--moon)}
 .phones{font-size:18px;letter-spacing:2px;overflow-wrap:anywhere}
 .opt:disabled,.step.off .ctl button:disabled{opacity:.35;cursor:not-allowed}
 .step.off b{color:var(--mut)}
+.accbar{margin-top:8px;background:var(--sky2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.accbar .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.accbar .row.sub{font-size:12.5px;color:var(--mut)}.accbar .row.sub span:last-child{white-space:nowrap}.accbar .row.sub b{color:var(--moon)}
+.accbar .bar{height:10px;border-radius:6px;background:var(--sky);position:relative;overflow:hidden}
+.accbar .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .4s ease}
+.accbar .bar i.was{background:#ffffff22}
 .tip{background:#ffd16614;border:1px dashed var(--moon);color:var(--moon);border-radius:10px;padding:9px 12px;font-weight:600;font-size:13.5px}
 .launch{position:sticky;bottom:78px;display:flex;justify-content:space-between;align-items:center;background:var(--moon);color:#05081A;border:0;border-radius:14px;padding:14px 16px;font:700 18px var(--d);width:100%;cursor:pointer;box-shadow:0 6px 24px #0008}
 .launch:disabled{opacity:.6;cursor:wait}
@@ -315,7 +321,7 @@ function renderReg(){
    '<div class="lbl">Extras</div>'+
    stepper("ap","💰","Autopago","Clientes que pusieron autopago",F.ap)+
    stepper("edge","💳","Total Edge",hasAct()?"🔒 No se combina con activaciones: Edge es pago único y ya incluye la línea":"Pago único $15 c/u · ya incluye la línea",F.edge,hasAct())+
-   '<label class="fld" style="margin-top:10px">🎧 Accesorios vendidos ($)<input id="fA" inputmode="decimal" placeholder="0.00" value="'+esc(F.acc)+'"></label>'+
+   '<label class="fld" style="margin-top:10px">🎧 Accesorios vendidos ($)<input id="fA" inputmode="decimal" placeholder="0.00" value="'+esc(F.acc)+'"></label><div id="accBar"></div>'+
    '<div id="tip" style="margin-top:10px"></div><div class="msg" id="rmsg" role="status" style="margin-top:8px"></div><div id="undoBox"></div></div>'+
    '<button class="launch" type="button" id="launch"><span>🚀 Lanzar venta</span><span id="gain">+$0.00</span></button>';
   $("v-reg").innerHTML=h;
@@ -334,6 +340,18 @@ function renderReg(){
 }
 function draft(){return {seller:F.seller,store:F.store,date:nyToday(),week:weekOf(nyToday()),created_at:new Date().toISOString(),plan:F.plan,lines:F.plan?F.lines:0,tabs:F.tabs.slice(),hi:F.hi,autopay:F.ap,edge:F.edge,acc:Math.max(0,parseFloat(F.acc)||0)};}
 function mySales(name,w){return sales.filter(function(s){return s.seller===name&&s.week===w;});}
+function accState(c){var p=c.accMin?c.n.acc/c.accMin:0;return {p:p,left:Math.max(0,c.accMin-c.n.acc),col:c.accOk?"var(--ok)":p>=.9?"var(--hot)":p>=.5?"var(--orb)":"var(--lift)"};}
+function accBar(b,a,typing){
+  if(!a.d)return '';
+  var s=accState(a), sb=accState(b), pct=Math.min(100,Math.round(s.p*100)), pb=Math.min(100,Math.round(sb.p*100));
+  var msg=a.accOk?(b.accOk?'✅ Ya cobras 5% de todo lo que vendes en accesorios':'🎉 ¡Con esta venta llegas! Cobras 5% de todo')
+    :s.p>=.9?'🔥 ¡Casi! Te faltan <b>'+money(s.left)+'</b>'
+    :s.p>=.5?'💪 Vas a mitad de camino · faltan <b>'+money(s.left)+'</b>'
+    :'Te faltan <b>'+money(s.left)+'</b> para cobrar 5%';
+  return '<div class="accbar"><div class="row"><span>🎧 Accesorios de la semana</span><b class="num">'+money(a.n.acc)+' / '+money(a.accMin)+'</b></div>'+
+    '<div class="bar"><i class="was" style="width:'+pb+'%"></i><i style="width:'+pct+'%;background:'+s.col+'"></i></div>'+
+    '<div class="row sub"><span>'+msg+'</span><span>'+a.d+(a.d===1?' día':' días')+' × $50</span></div></div>';
+}
 function preview(){
   var d=draft(), w=d.week||curWeek(), before=calc(mySales(F.seller,w)), after=calc(mySales(F.seller,w).concat([d]));
   $("gain").textContent="+"+money(Math.max(0,after.pay.total-before.pay.total));
@@ -343,6 +361,7 @@ function preview(){
   else if(after.apLvl>before.apLvl)tip="🎉 Con esta venta llegas a "+LV[after.apLvl][1]+" en autopago: todos pasan a "+money(after.apRate);
   else if(!before.accOk&&after.accOk)tip="🎉 Con esta venta llegas al mínimo de accesorios: cobras 5% de todo";
   $("tip").innerHTML=tip?'<div class="tip">'+tip+'</div>':'';
+  $("accBar").innerHTML=accBar(before,after,!!Number(F.acc));
 }
 var saving=false;
 async function save(){
@@ -370,7 +389,9 @@ async function save(){
   if(!cele)snd(up?"level":"launch");
   var keep="✓ Venta lanzada: +"+money(after.pay.total-before.pay.total)+(up?" · ¡Subiste de nivel!":"");
   var keepS=F.seller,keepT=F.store;resetF();F.seller=keepS;F.store=keepT;
-  renderReg();var mm=$("rmsg");mm.className="msg ok";mm.textContent=keep;if(!cele)toast("🚀 ¡Venta lanzada!");
+  renderReg();var mm=$("rmsg");mm.className="msg ok";mm.textContent=keep;if(!cele){var ab=accState(before),aa=accState(after),cross=[.5,.75,.9].filter(function(t){return ab.p<t&&aa.p>=t;}).pop();
+    if(!after.accOk&&cross)toast((cross>=.9?"🔥 ¡Casi! ":"🎧 ")+"Accesorios al "+Math.round(cross*100)+"% · faltan "+money(aa.left));
+    else toast("🚀 ¡Venta lanzada!");}
 }
 function rankPos(name,w){var st=standings(w);for(var i=0;i<st.length;i++)if(st[i].name===name)return i+1;return 0;}
 function celebrate(b,a,pb,pa,w){
@@ -415,8 +436,8 @@ function renderMe(){
   h+=progRow("💰","Autopago",c.n.ap,c.mO,c.mL,c.apLvl,money(c.pay.ap),apHint);
   var acHint=c.acLvl===2?"🌕 ¡Estás en Luna! 12% en todas":(c.acLvl===1?(c.mL-c.n.act)+" más = 12% en todas":(c.mO-c.n.act)+" más = 10% en todas");
   h+=progRow("📶","Activaciones",c.n.act,c.mO,c.mL,c.acLvl,money(c.pay.act),acHint);
-  var accHint=c.accOk?"✅ Mínimo logrado: 5% de todo":"Faltan <b>"+money(c.accMin-c.n.acc)+"</b> para cobrar 5%";
-  h+=progRow("🎧","Accesorios",c.n.acc,0,c.accMin,c.accOk?1:0,money(c.pay.acc),accHint,function(v){return "$"+Math.round(v);});
+  var accHint=c.accOk?"✅ Mínimo logrado: 5% de todo":"Faltan <b>"+money(c.accMin-c.n.acc)+"</b> · meta $50 × "+c.d+(c.d===1?" día":" días");
+  h+=progRow("🎧","Accesorios (acumulado)",c.n.acc,0,c.accMin,c.accOk?1:0,money(c.pay.acc),accHint,function(v){return "$"+Math.round(v);});
   h+='<div class="card prog"><div class="row"><b>💳 Total Edge</b><span class="num"><b>'+c.n.edge+'</b> × $15</span></div><div class="row"><span class="hint">Sin meta, desde el primero</span><b class="num">'+money(c.pay.edge)+'</b></div></div>';
   h+='<div class="card"><h2>🧾 Mis ventas</h2>'+c.list.slice().sort(function(a,b){return Date.parse(b.created_at)-Date.parse(a.created_at);}).map(function(s){return '<div class="sale"><div>'+esc(items(s))+'<div class="sub">'+esc(fmtDate(s.date))+' · '+esc(s.store)+'</div></div><div>'+(s.verified?'<span class="pill" style="color:var(--ok);border:1px solid var(--ok)">✓ Verificada</span>':'<span class="pill" style="color:var(--mut);border:1px solid var(--line)">Por verificar</span>')+'</div></div>';}).join("")+'</div>';
   h+='<div class="sub" style="text-align:center">La meta crece 1 por cada día que registras una venta. Toda orden se verifica antes de pagar.</div>';

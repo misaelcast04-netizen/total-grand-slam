@@ -87,6 +87,11 @@ header.h h1 span{color:var(--moon)}
 .accbar .bar{height:10px;border-radius:6px;background:var(--sky);position:relative;overflow:hidden}
 .accbar .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .4s ease}
 .accbar .bar i.was{background:#ffffff22}
+.tm{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--sky2);border-radius:10px;padding:7px 10px;font-size:13.5px;font-weight:600}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--mut);font-weight:700;font-size:12.5px;padding:8px 10px;cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--moon);color:#05081A}
 .tip{background:#ffd16614;border:1px dashed var(--moon);color:var(--moon);border-radius:10px;padding:9px 12px;font-weight:600;font-size:13.5px}
 .launch{position:sticky;bottom:78px;display:flex;justify-content:space-between;align-items:center;background:var(--moon);color:#05081A;border:0;border-radius:14px;padding:14px 16px;font:700 18px var(--d);width:100%;cursor:pointer;box-shadow:0 6px 24px #0008}
 .launch:disabled{opacity:.6;cursor:wait}
@@ -193,6 +198,12 @@ var NOAUTO=5, MAXLINES=10;
 function famTotal(plan,n){var t=FAM[PI[plan].fam];return n<=4?t[n]:t[4]+30*(n-4);}
 function planBase(plan,n){var x=PI[plan];if(!x)return 0;if(x.one||n<=1||!x.fam)return x.b;return (famTotal(plan,n)+NOAUTO)*.5;}
 var TAB={10:5,20:10}, HI={35:17.5,60:30};
+// Tablet multimonth: se guarda como plan*100+meses (1003 = Tablet $10 · 3 meses, 2006 = Tablet $20 · 6 meses).
+// Comisión: mes 1 al 50%, meses siguientes al 75% (igual que los planes de teléfono multimonth).
+var TAB_MONTHS=[1,3,6];
+function tabPlan(c){return c<100?c:Math.floor(c/100);}
+function tabMonths(c){return c<100?1:c%100;}
+function tabBase(c){var p=tabPlan(c),m=tabMonths(c);if(m===1)return TAB[p]||0;return p*(.5+.75*(m-1));}
 var WEEKS=[{n:1,a:"2026-11-09",b:"2026-11-15",t:"Semana 1 · 9–15 nov"},{n:2,a:"2026-11-16",b:"2026-11-22",t:"Semana 2 · 16–22 nov"},{n:3,a:"2026-11-23",b:"2026-11-30",t:"Semana 3 · 23–30 nov"}];
 var LV=[["🛰️","Despegue","var(--lift)"],["🌍","Órbita","var(--orb)"],["🌕","Luna","var(--moon)"]];
 
@@ -208,7 +219,7 @@ if(!device||device.length<16){var a=new Uint8Array(16);crypto.getRandomValues(a)
 var mine=[];try{mine=JSON.parse(LS.get("mt-mine")||"[]");}catch(e){}
 
 function acts(s){return (s.plan?s.lines:0)+(s.tabs||[]).length+(s.hi?1:0);}
-function base(s){var b=0;if(s.plan)b+=planBase(s.plan,s.lines);(s.tabs||[]).forEach(function(t){b+=TAB[t]||0;});if(s.hi)b+=HI[s.hi]||0;return b;}
+function base(s){var b=0;if(s.plan)b+=planBase(s.plan,s.lines);(s.tabs||[]).forEach(function(t){b+=tabBase(t);});if(s.hi)b+=HI[s.hi]||0;return b;}
 function calc(list){
   var days={},n={ap:0,act:0,base:0,edge:0,acc:0};
   list.forEach(function(s){days[s.date]=1;n.ap+=s.autopay;n.act+=acts(s);n.base+=base(s);n.edge+=s.edge;n.acc+=Number(s.acc)||0;});
@@ -294,9 +305,13 @@ function renderControl(){
 }
 
 /* ---------- REGISTRAR ---------- */
-var F;function resetF(){var last={};try{last=JSON.parse(LS.get("mt-last")||"{}");}catch(e){}F={seller:ME?ME.name:"",store:last.store||"",order:"",plan:null,lines:1,tabs:[],hi:null,ap:0,edge:0,acc:""};}
+var F;function resetF(){var last={};try{last=JSON.parse(LS.get("mt-last")||"{}");}catch(e){}F={seller:ME?ME.name:"",store:last.store||"",order:"",plan:null,lines:1,tabs:[],tabM:{10:1,20:1},hi:null,ap:0,edge:0,acc:""};}
 resetF();
 function stepper(key,icon,title,sub,val,off){var d=off?' disabled':'';return '<div class="step'+(off?' off':'')+'"><div><b>'+icon+' '+title+'</b><div class="sub">'+sub+'</div></div><div class="ctl"><button type="button" data-dec="'+key+'" aria-label="Menos '+title+'"'+d+'>−</button><b class="num">'+val+'</b><button type="button" data-inc="'+key+'" aria-label="Más '+title+'"'+d+'>+</button></div></div>';}
+function tabMonthRows(){
+  return F.tabs.slice().sort().map(function(t){var m=F.tabM[t]||1;
+    return '<div class="tm"><span>📲 Tablet $'+t+'</span><div class="seg">'+TAB_MONTHS.map(function(x){return '<button type="button" data-tm="'+t+':'+x+'" aria-pressed="'+(m===x)+'">'+x+(x===1?' mes':' meses')+'</button>';}).join("")+'</div></div>';}).join("");
+}
 function hasAct(){return !!(F.plan||F.tabs.length||F.hi);}
 function renderReg(){
   if(curWeek()&&nyToday()>WEEKS[2].b){$("v-reg").innerHTML='<div class="card empty">🏁 Misión Total terminó el 30 de noviembre.<br>Gracias por participar.</div>';return;}
@@ -316,6 +331,7 @@ function renderReg(){
    '<div class="lbl">Tablet y Home Internet</div><div class="chips">'+
    '<button type="button" class="opt" data-tab="10" aria-pressed="'+(F.tabs.indexOf(10)>=0)+'"'+(F.edge?' disabled':'')+'>📲 Tablet $10</button>'+
    '<button type="button" class="opt" data-tab="20" aria-pressed="'+(F.tabs.indexOf(20)>=0)+'"'+(F.edge?' disabled':'')+'>📲 Tablet $20</button>'+
+   '</div>'+tabMonthRows()+'<div class="chips" style="margin-top:6px">'+
    '<button type="button" class="opt" data-hi="35" aria-pressed="'+(F.hi===35)+'"'+(F.edge?' disabled':'')+'>🏠 HI $35</button>'+
    '<button type="button" class="opt" data-hi="60" aria-pressed="'+(F.hi===60)+'"'+(F.edge?' disabled':'')+'>🏠 HI $60</button></div>'+
    '<div class="lbl">Extras</div>'+
@@ -330,7 +346,8 @@ function renderReg(){
   $("fA").oninput=function(){F.acc=this.value;preview();};
   var q=function(sel,fn){[].forEach.call(document.querySelectorAll("#v-reg "+sel),function(b){b.onclick=function(){fn(b);renderReg();};});};
   q("[data-plan]",function(b){var p=+b.dataset.plan;F.plan=F.plan===p?null:p;F.lines=1;});
-  q("[data-tab]",function(b){var t=+b.dataset.tab,i=F.tabs.indexOf(t);if(i>=0)F.tabs.splice(i,1);else F.tabs.push(t);});
+  q("[data-tab]",function(b){var t=+b.dataset.tab,i=F.tabs.indexOf(t);if(i>=0)F.tabs.splice(i,1);else{F.tabs.push(t);F.tabM[t]=1;}});
+  q("[data-tm]",function(b){var p=b.dataset.tm.split(":");F.tabM[+p[0]]=+p[1];});
   q("[data-hi]",function(b){var t=+b.dataset.hi;F.hi=F.hi===t?null:t;});
   var MAX={lines:MAXLINES,ap:10,edge:10},MIN={lines:1,ap:0,edge:0};
   q("[data-inc]",function(b){var k=b.dataset.inc;F[k]=Math.min(MAX[k],F[k]+1);});
@@ -338,7 +355,7 @@ function renderReg(){
   $("launch").onclick=save;
   preview();renderUndo();
 }
-function draft(){return {seller:F.seller,store:F.store,date:nyToday(),week:weekOf(nyToday()),created_at:new Date().toISOString(),plan:F.plan,lines:F.plan?F.lines:0,tabs:F.tabs.slice(),hi:F.hi,autopay:F.ap,edge:F.edge,acc:Math.max(0,parseFloat(F.acc)||0)};}
+function draft(){return {seller:F.seller,store:F.store,date:nyToday(),week:weekOf(nyToday()),created_at:new Date().toISOString(),plan:F.plan,lines:F.plan?F.lines:0,tabs:F.tabs.map(function(t){var m=F.tabM[t]||1;return m>1?t*100+m:t;}),hi:F.hi,autopay:F.ap,edge:F.edge,acc:Math.max(0,parseFloat(F.acc)||0)};}
 function mySales(name,w){return sales.filter(function(s){return s.seller===name&&s.week===w;});}
 function accState(c){var p=c.accMin?c.n.acc/c.accMin:0;return {p:p,left:Math.max(0,c.accMin-c.n.acc),col:c.accOk?"var(--ok)":p>=.9?"var(--hot)":p>=.5?"var(--orb)":"var(--lift)"};}
 function accBar(b,a,typing){
@@ -444,7 +461,7 @@ function renderMe(){
   $("v-me").innerHTML=h;bindMe();
 }
 function bindMe(){$("out").onclick=function(){if(this.dataset.c!=="1"){this.dataset.c="1";this.textContent="¿Seguro? Toca otra vez";return;}logout();};bindWeeks($("v-me"),"me",renderMe);}
-function items(s){var it=[];if(s.plan)it.push("Plan $"+s.plan+(s.lines>1?" + "+(s.lines-1)+(s.lines>2?" líneas familiares":" línea familiar"):""));(s.tabs||[]).forEach(function(t){it.push("Tablet $"+t);});if(s.hi)it.push("HI $"+s.hi);if(s.autopay)it.push("Autopago"+(s.autopay>1?" ×"+s.autopay:""));if(s.edge)it.push("Edge"+(s.edge>1?" ×"+s.edge:""));if(Number(s.acc))it.push("Acc. $"+Number(s.acc).toFixed(2));return it.join(" · ");}
+function items(s){var it=[];if(s.plan)it.push("Plan $"+s.plan+(s.lines>1?" + "+(s.lines-1)+(s.lines>2?" líneas familiares":" línea familiar"):""));(s.tabs||[]).forEach(function(t){it.push("Tablet $"+tabPlan(t)+(tabMonths(t)>1?" · "+tabMonths(t)+" meses":""));});if(s.hi)it.push("HI $"+s.hi);if(s.autopay)it.push("Autopago"+(s.autopay>1?" ×"+s.autopay:""));if(s.edge)it.push("Edge"+(s.edge>1?" ×"+s.edge:""));if(Number(s.acc))it.push("Acc. $"+Number(s.acc).toFixed(2));return it.join(" · ");}
 var DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 function fmtDate(d){var x=new Date(d+"T12:00:00");return DOW[x.getDay()]+" "+x.getDate()+" nov";}
 

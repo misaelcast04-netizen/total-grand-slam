@@ -310,7 +310,7 @@ resetF();
 function stepper(key,icon,title,sub,val,off){var d=off?' disabled':'';return '<div class="step'+(off?' off':'')+'"><div><b>'+icon+' '+title+'</b><div class="sub">'+sub+'</div></div><div class="ctl"><button type="button" data-dec="'+key+'" aria-label="Menos '+title+'"'+d+'>−</button><b class="num">'+val+'</b><button type="button" data-inc="'+key+'" aria-label="Más '+title+'"'+d+'>+</button></div></div>';}
 function tabMonthRows(){
   return F.tabs.slice().sort().map(function(t){var m=F.tabM[t]||1;
-    return '<div class="tm"><span>📲 Tablet $'+t+'</span><div class="seg">'+TAB_MONTHS.map(function(x){return '<button type="button" data-tm="'+t+':'+x+'" aria-pressed="'+(m===x)+'">'+x+(x===1?' mes':' meses')+'</button>';}).join("")+'</div></div>';}).join("");
+    return '<div class="tm"><span>📲 Tablet $'+t+' <small class="sub">'+(m>1?'· '+m+' meses':'· 1 mes')+'</small></span><div class="seg">'+[3,6].map(function(x){return '<button type="button" data-tm="'+t+':'+x+'" aria-pressed="'+(m===x)+'">'+x+' meses</button>';}).join("")+'</div></div>';}).join("");
 }
 function hasAct(){return !!(F.plan||F.tabs.length||F.hi);}
 function renderReg(){
@@ -347,7 +347,7 @@ function renderReg(){
   var q=function(sel,fn){[].forEach.call(document.querySelectorAll("#v-reg "+sel),function(b){b.onclick=function(){fn(b);renderReg();};});};
   q("[data-plan]",function(b){var p=+b.dataset.plan;F.plan=F.plan===p?null:p;F.lines=1;});
   q("[data-tab]",function(b){var t=+b.dataset.tab,i=F.tabs.indexOf(t);if(i>=0)F.tabs.splice(i,1);else{F.tabs.push(t);F.tabM[t]=1;}});
-  q("[data-tm]",function(b){var p=b.dataset.tm.split(":");F.tabM[+p[0]]=+p[1];});
+  q("[data-tm]",function(b){var p=b.dataset.tm.split(":"),t=+p[0],m=+p[1];F.tabM[t]=F.tabM[t]===m?1:m;});
   q("[data-hi]",function(b){var t=+b.dataset.hi;F.hi=F.hi===t?null:t;});
   var MAX={lines:MAXLINES,ap:10,edge:10},MIN={lines:1,ap:0,edge:0};
   q("[data-inc]",function(b){var k=b.dataset.inc;F[k]=Math.min(MAX[k],F[k]+1);});
